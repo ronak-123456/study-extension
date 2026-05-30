@@ -1,6 +1,7 @@
 let lastNotifiedDomain = '';
 let lastNotifiedAt = 0;
-const NOTIFICATION_COOLDOWN_MS = 8000;
+const REMINDER_INTERVAL_MINS = 15;
+const NOTIFICATION_COOLDOWN_MS = REMINDER_INTERVAL_MINS * 60 * 1000;
 
 function triggerFocusNotification(tabId, currentDomain) {
   const now = Date.now();
@@ -116,4 +117,18 @@ chrome.runtime.onInstalled.addListener(() => {
       });
     });
   });
+});
+
+// Periodic check every minute to see if a reminder is needed for the active tab
+chrome.alarms.create('periodicFocusCheck', { periodInMinutes: 1 });
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'periodicFocusCheck') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        console.log('Focus Flow Analyzer: Periodic check triggered for active tab');
+        evaluateTab(tabs[0]);
+      }
+    });
+  }
 });
