@@ -32,7 +32,20 @@ function triggerFocusNotification(tabId, currentDomain) {
     }).then(() => {
       console.log(`Focus Flow Analyzer: Message sent successfully to tab ${tabId}`);
     }).catch(err => {
-      console.error(`Focus Flow Analyzer: Failed to send message to tab ${tabId}. Is content script injected?`, err);
+      console.log(`Focus Flow Analyzer: Message failed. Attempting dynamic injection for tab ${tabId}.`);
+      // Try to inject the content script if it's missing
+      chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      }).then(() => {
+        // Retry the message after injection
+        chrome.tabs.sendMessage(tabId, {
+          action: 'showFocusNudge',
+          domain: currentDomain
+        });
+      }).catch(injectErr => {
+        console.error(`Focus Flow Analyzer: Failed to dynamically inject script into tab ${tabId}:`, injectErr);
+      });
     });
   }
 }
@@ -87,4 +100,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tab.active && (changeInfo.status === 'complete' || changeInfo.url)) {
     evaluateTab(tab);
   }
+});
+
+// Dynamically inject content scripts into all tabs when the extension is installed or reloaded
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
+    tabs.forEach((tab) => {
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js']
+      }).then(() => {
+        console.log(`Focus Flow Analyzer: Successfully injected on install into tab ${tab.id}`);
+      }).catch(err => {
+        console.log(`Focus Flow Analyzer: Could not inject into tab ${tab.id} on install:`, err);
+      });
+    });
+  });
 });
