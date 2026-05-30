@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Flow Analyzer</title>
+  <style>
+    :root {
+      --bg-1: #eaf7f0;
+      --bg-2: #dff3ea;
+      --card: #f7fdf9;
+      --text: #1f3a30;
+      --muted: #5f7f72;
+      --primary: #6abf9b;
+      --primary-strong: #57ae8b;
+      --primary-soft: #d8f2e5;
+      --line: #cde8db;
+      --danger: #d95d5d;
+      --danger-soft: #ffe9e9;
+      --shadow: 0 10px 24px rgba(90, 153, 123, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 340px;
+      margin: 0;
+      padding: 14px;
+      font-family: "Avenir Next", "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: linear-gradient(145deg, var(--bg-1), var(--bg-2));
+    }
+
+    .popup {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+      animation: fadeIn 0.25s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      color: #2d5f4d;
+      letter-spacing: 0.2px;
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: #2f7058;
+      border: 1px solid #bce2d0;
+    }
+
+    .subtitle {
+      margin: 8px 0 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .secondary-btn,
+    #addCustomBtn {
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .secondary-btn {
+      width: 100%;
+      padding: 9px 10px;
+      background: var(--primary-soft);
+      color: #2f7058;
+      border: 1px solid #bce2d0;
+      margin-bottom: 10px;
+    }
+
+    .secondary-btn:hover {
+      background: #cdeede;
+      transform: translateY(-1px);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    #domainInput {
+      flex: 1;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      background: #ffffff;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #domainInput:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(106, 191, 155, 0.2);
+    }
+
+    #addCustomBtn {
+      padding: 9px 12px;
+      background: var(--primary);
+      color: #fff;
+      min-width: 64px;
+    }
+
+    #addCustomBtn:hover {
+      background: var(--primary-strong);
+      transform: translateY(-1px);
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #status {
+      min-height: 16px;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    #status.success { color: #2f7a5d; }
+    #status.error { color: #c84f4f; }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 210px;
+      overflow-y: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fcfffd;
+    }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-bottom: 1px solid #e6f3ec;
+      font-size: 13px;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(3px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    li:last-child { border-bottom: none; }
+
+    .domain-name {
+      overflow-wrap: anywhere;
+      color: #2b5245;
+    }
+
+    .delete-btn {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid #f2c7c7;
+      border-radius: 8px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .delete-btn:hover {
+      background: #ffdede;
+      transform: translateY(-1px);
+    }
+
+    .empty {
+      justify-content: center;
+      color: #739587;
+      font-style: italic;
+      padding: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="popup">
+    <div class="title-row">
+      <h2>Study Domains</h2>
+      <span class="badge">Focus</span>
+    </div>
+    <p class="subtitle">Add your approved learning sites and keep your browsing on track.</p>
+
+    <button id="addCurrentBtn" class="secondary-btn">+ Add Current Website</button>
+
+    <div class="input-group">
+      <input type="text" id="domainInput" placeholder="e.g., khanacademy.org" autocomplete="off">
+      <button id="addCustomBtn">Add</button>
+    </div>
+
+    <div class="meta">
+      <span id="countText">0 domains</span>
+      <span id="status"></span>
+    </div>
+
+    <ul id="domainList"></ul>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
