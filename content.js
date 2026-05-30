@@ -1,15 +1,15 @@
 console.log('Focus Flow Analyzer: Content script loaded');
 
 function createNudgeModal(domain) {
-    const existingModal = document.getElementById('focus-flow-nudge-container');
-    if (existingModal) existingModal.remove();
+  const existingModal = document.getElementById('focus-flow-nudge-container');
+  if (existingModal) existingModal.remove();
 
-    const container = document.createElement('div');
-    container.id = 'focus-flow-nudge-container';
+  const container = document.createElement('div');
+  container.id = 'focus-flow-nudge-container';
 
-    // Inject CSS
-    const style = document.createElement('style');
-    style.textContent = `
+  // Inject CSS
+  const style = document.createElement('style');
+  style.textContent = `
     #focus-flow-nudge-container {
       position: fixed;
       top: 24px;
@@ -120,70 +120,66 @@ function createNudgeModal(domain) {
     }
   `;
 
-    const modal = document.createElement('div');
-    modal.id = 'focus-flow-nudge-modal';
+  const modal = document.createElement('div');
+  modal.id = 'focus-flow-nudge-modal';
 
-    const logoContainer = document.createElement('div');
-    logoContainer.className = 'focus-flow-logo-container';
+  const logoContainer = document.createElement('div');
+  logoContainer.className = 'focus-flow-logo-container';
 
-    const logo = document.createElement('img');
-    logo.className = 'focus-flow-logo';
-    // Use icon.png from root as it's the high-res one
-    logo.src = chrome.runtime.getURL('icon.png');
-    logo.onerror = () => {
-        // Fallback to icons/icon128.png if root icon.png fails
-        logo.src = chrome.runtime.getURL('icons/icon128.png');
-    };
+  const logo = document.createElement('img');
+  logo.className = 'focus-flow-logo';
+  // Use logo.jpg from root
+  logo.src = chrome.runtime.getURL('logo.jpg');
 
-    logoContainer.appendChild(logo);
+  logoContainer.appendChild(logo);
 
-    const content = document.createElement('div');
-    content.className = 'focus-flow-content';
+  const content = document.createElement('div');
+  content.className = 'focus-flow-content';
 
-    const title = document.createElement('h3');
-    title.className = 'focus-flow-title';
-    title.textContent = 'Stay Focused';
+  const title = document.createElement('h3');
+  title.className = 'focus-flow-title';
+  title.textContent = 'Stay Focused';
 
-    const message = document.createElement('p');
-    message.className = 'focus-flow-message';
-    message.innerHTML = `You are exploring <span class="focus-flow-domain">${domain}</span>.<br>Time to get back to work!`;
+  const message = document.createElement('p');
+  message.className = 'focus-flow-message';
+  message.innerHTML = `You are exploring <span class="focus-flow-domain">${domain}</span>.<br>Time to get back to work!`;
 
-    const button = document.createElement('button');
-    button.className = 'focus-flow-button';
-    button.textContent = 'Return to Studies';
-    button.onclick = () => {
-        modal.style.transform = 'translateY(-20px)';
-        modal.style.opacity = '0';
-        modal.style.transition = 'all 0.3s ease-in';
-        setTimeout(() => container.remove(), 300);
-    };
+  const button = document.createElement('button');
+  button.className = 'focus-flow-button';
+  button.textContent = 'Return to Studies';
+  button.onclick = () => {
+    modal.style.transform = 'translateY(-20px)';
+    modal.style.opacity = '0';
+    modal.style.transition = 'all 0.3s ease-in';
+    setTimeout(() => container.remove(), 300);
+  };
 
-    // Assemble
-    content.appendChild(title);
-    content.appendChild(message);
+  // Assemble
+  content.appendChild(title);
+  content.appendChild(message);
 
-    modal.appendChild(logoContainer);
-    modal.appendChild(content);
-    modal.appendChild(button);
+  modal.appendChild(logoContainer);
+  modal.appendChild(content);
+  modal.appendChild(button);
 
-    container.appendChild(style);
-    container.appendChild(modal);
+  container.appendChild(style);
+  container.appendChild(modal);
 
-    document.body.appendChild(container);
+  document.body.appendChild(container);
 
-    // Auto-remove after 15 seconds
-    setTimeout(() => {
-        if (container.parentNode) {
-            modal.style.transform = 'translateY(-20px)';
-            modal.style.opacity = '0';
-            modal.style.transition = 'all 0.3s ease-in';
-            setTimeout(() => container.remove(), 300);
-        }
-    }, 15000);
+  // Auto-remove after 15 seconds
+  setTimeout(() => {
+    if (container.parentNode) {
+      modal.style.transform = 'translateY(-20px)';
+      modal.style.opacity = '0';
+      modal.style.transition = 'all 0.3s ease-in';
+      setTimeout(() => container.remove(), 300);
+    }
+  }, 15000);
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'showFocusNudge') {
-        createNudgeModal(request.domain);
-    }
+  if (request.action === 'showFocusNudge') {
+    createNudgeModal(request.domain);
+  }
 });

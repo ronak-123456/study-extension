@@ -20,17 +20,17 @@
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "logo.jpg",
+      "32": "logo.jpg",
+      "48": "logo.jpg",
+      "128": "logo.jpg"
     }
   },
   "icons": {
-    "16": "icons/icon16.png",
-    "32": "icons/icon32.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "logo.jpg",
+    "32": "logo.jpg",
+    "48": "logo.jpg",
+    "128": "logo.jpg"
   },
   "content_scripts": [
     {
@@ -45,8 +45,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "icons/*.png",
-        "icon.png"
+        "logo.jpg"
       ],
       "matches": [
         "<all_urls>"

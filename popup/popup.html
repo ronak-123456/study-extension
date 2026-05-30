@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,8 +44,15 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .title-row {
@@ -152,8 +160,13 @@
       text-align: right;
     }
 
-    #status.success { color: #2f7a5d; }
-    #status.error { color: #c84f4f; }
+    #status.success {
+      color: #2f7a5d;
+    }
+
+    #status.error {
+      color: #c84f4f;
+    }
 
     ul {
       list-style: none;
@@ -178,11 +191,20 @@
     }
 
     @keyframes slideIn {
-      from { opacity: 0; transform: translateX(3px); }
-      to { opacity: 1; transform: translateX(0); }
+      from {
+        opacity: 0;
+        transform: translateX(3px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
     }
 
-    li:last-child { border-bottom: none; }
+    li:last-child {
+      border-bottom: none;
+    }
 
     .domain-name {
       overflow-wrap: anywhere;
@@ -214,10 +236,14 @@
     }
   </style>
 </head>
+
 <body>
   <div class="popup">
     <div class="title-row">
-      <h2>Study Domains</h2>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <img src="../logo.jpg" style="width: 32px; height: 32px; border-radius: 8px;">
+        <h2>Study Domains</h2>
+      </div>
       <span class="badge">Focus</span>
     </div>
     <p class="subtitle">Add your approved learning sites and keep your browsing on track.</p>
@@ -239,4 +265,5 @@
 
   <script src="popup.js"></script>
 </body>
+
 </html>
