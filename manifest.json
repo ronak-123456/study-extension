@@ -45,7 +45,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "logo.jpg"
+        "logo.jpg",
+        "analysis/*"
       ],
       "matches": [
         "<all_urls>"

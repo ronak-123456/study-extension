@@ -255,6 +255,29 @@
       font-style: italic;
       padding: 14px;
     }
+
+    .primary-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(106, 191, 155, 0.3);
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(106, 191, 155, 0.4);
+    }
+
+    .primary-btn:active {
+      transform: translateY(0);
+    }
   </style>
 </head>
 
@@ -282,6 +305,8 @@
     </div>
 
     <ul id="domainList"></ul>
+
+    <button id="viewStatsBtn" class="primary-btn" style="margin-top: 14px;">View Analysis Dashboard</button>
   </div>
 
   <script src="popup.js"></script>

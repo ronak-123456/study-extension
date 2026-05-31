@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow Dashboard</title>
+    <link rel="stylesheet" href="analysis.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <img src="../logo.jpg" class="logo">
+                <h1>Focus Flow Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <span id="currentDate"></span>
+            </div>
+        </header>
+
+        <main>
+            <section class="overview">
+                <div class="card stat-card">
+                    <h3>Total Focus Time</h3>
+                    <p id="totalFocusTime">0h 0m</p>
+                    <div class="trend up">Focusing 12% more than yesterday</div>
+                </div>
+                <div class="card stat-card">
+                    <h3>Top Distraction</h3>
+                    <p id="topDistraction">None</p>
+                    <span class="muted" id="distractionTime">0m</span>
+                </div>
+                <div class="card stat-card">
+                    <h3>Study Efficiency</h3>
+                    <p id="focusRatio">0%</p>
+                    <div class="progress-bar">
+                        <div id="ratioProgress" class="progress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="charts">
+                <div class="card chart-card">
+                    <h3>Usage Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="usageChart"></canvas>
+                    </div>
+                </div>
+                <div class="card top-sites">
+                    <h3>Top Websites</h3>
+                    <ul id="topSitesList">
+                        <!-- Populated via JS -->
+                    </ul>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="analysis.js"></script>
+</body>
+
+</html>

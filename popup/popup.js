@@ -6,8 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const domainList = document.getElementById('domainList');
   const countText = document.getElementById('countText');
   const status = document.getElementById('status');
+  const viewStatsBtn = document.getElementById('viewStatsBtn');
 
   loadDomains();
+
+  viewStatsBtn.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('analysis/analysis.html') });
+  });
 
   addCustomBtn.addEventListener('click', () => {
     let domain = domainInput.value.trim().toLowerCase();
