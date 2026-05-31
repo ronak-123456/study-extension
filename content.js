@@ -146,7 +146,7 @@ function createNudgeModal(domain) {
 
   const button = document.createElement('button');
   button.className = 'focus-flow-button';
-  button.textContent = 'Return to Studies';
+  button.textContent = 'Focus up!';
   button.onclick = () => {
     modal.style.transform = 'translateY(-20px)';
     modal.style.opacity = '0';
