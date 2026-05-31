@@ -51,10 +51,10 @@ function createNudgeModal(domain) {
       height: 80px;
       margin: 0 auto;
       position: relative;
-      background: linear-gradient(135deg, #6e8efb 0%, #a777e3 100%);
+      background: linear-gradient(135deg, #6abf9b 0%, #57ae8b 100%);
       padding: 4px;
       border-radius: 22px;
-      box-shadow: 0 8px 16px rgba(110, 142, 251, 0.3);
+      box-shadow: 0 8px 16px rgba(90, 153, 123, 0.15);
     }
 
     .focus-flow-logo {
@@ -75,7 +75,7 @@ function createNudgeModal(domain) {
       font-size: 20px;
       font-weight: 700;
       margin: 0;
-      background: linear-gradient(135deg, #1a73e8 0%, #a777e3 100%);
+      background: linear-gradient(135deg, #2d5f4d 0%, #6abf9b 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       letter-spacing: -0.5px;
@@ -90,7 +90,7 @@ function createNudgeModal(domain) {
 
     .focus-flow-domain {
       font-weight: 600;
-      color: #202124;
+      color: #2b5245;
       display: block;
       margin-top: 4px;
     }
@@ -98,7 +98,7 @@ function createNudgeModal(domain) {
     .focus-flow-button {
       margin-top: 8px;
       padding: 12px 24px;
-      background: #1a73e8;
+      background: #6abf9b;
       color: white;
       border: none;
       border-radius: 12px;
@@ -106,13 +106,13 @@ function createNudgeModal(domain) {
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2);
+      box-shadow: 0 4px 12px rgba(106, 191, 155, 0.2);
     }
 
     .focus-flow-button:hover {
-      background: #1557b0;
+      background: #57ae8b;
       transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(26, 115, 232, 0.3);
+      box-shadow: 0 6px 16px rgba(106, 191, 155, 0.3);
     }
 
     .focus-flow-button:active {
