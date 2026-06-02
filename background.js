@@ -6,6 +6,8 @@ const NOTIFICATION_COOLDOWN_MS = REMINDER_INTERVAL_MINS * 60 * 1000;
 let activeTabId = null;
 let activeStartTime = null;
 let activeDomain = null;
+let activeUrl = null;
+let activeTitle = null;
 
 function getDomain(url) {
   if (!url || isSkippableUrl(url)) return null;
@@ -17,41 +19,59 @@ function getDomain(url) {
 }
 
 function stopTracking() {
-  if (activeStartTime && activeDomain) {
+  if (activeStartTime && activeUrl) {
     const duration = Math.round((Date.now() - activeStartTime) / 1000);
     if (duration > 0) {
-      saveStats(activeDomain, duration);
+      saveStats(activeDomain, activeUrl, activeTitle, duration);
     }
   }
   activeTabId = null;
   activeStartTime = null;
   activeDomain = null;
+  activeUrl = null;
+  activeTitle = null;
 }
 
-function startTracking(tabId, url) {
+function startTracking(tabId, url, title) {
   const domain = getDomain(url);
   if (!domain) {
     stopTracking();
     return;
   }
 
-  if (domain === activeDomain) return;
+  // If the URL is the same, just keep tracking
+  if (url === activeUrl) return;
 
   stopTracking();
 
   activeTabId = tabId;
   activeStartTime = Date.now();
   activeDomain = domain;
+  activeUrl = url;
+  activeTitle = title || 'Untitled Tab';
 }
 
-function saveStats(domain, duration) {
+function saveStats(domain, url, title, duration) {
   const today = new Date().toISOString().split('T')[0];
-  chrome.storage.local.get({ dailyStats: {} }, (data) => {
+  chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {} }, (data) => {
     const stats = data.dailyStats;
+    const urlStats = data.dailyUrlStats;
+
+    // Update domain stats
     if (!stats[today]) stats[today] = {};
     if (!stats[today][domain]) stats[today][domain] = 0;
     stats[today][domain] += duration;
-    chrome.storage.local.set({ dailyStats: stats });
+
+    // Update URL stats
+    if (!urlStats[today]) urlStats[today] = {};
+    if (!urlStats[today][url]) {
+      urlStats[today][url] = { title: title, domain: domain, duration: 0 };
+    }
+    urlStats[today][url].duration += duration;
+    // Always update title in case it changed
+    urlStats[today][url].title = title || urlStats[today][url].title;
+
+    chrome.storage.local.set({ dailyStats: stats, dailyUrlStats: urlStats });
   });
 }
 
@@ -124,15 +144,15 @@ function evaluateTab(tab) {
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.tabs.get(activeInfo.tabId, (tab) => {
-    startTracking(activeInfo.tabId, tab.url);
+    startTracking(activeInfo.tabId, tab.url, tab.title);
     evaluateTab(tab);
   });
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tab.active) {
-    if (changeInfo.url) {
-      startTracking(tabId, changeInfo.url);
+    if (changeInfo.url || changeInfo.title) {
+      startTracking(tabId, tab.url, tab.title);
     }
     if (changeInfo.status === 'complete') {
       evaluateTab(tab);
@@ -151,7 +171,7 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
     stopTracking();
   } else {
     chrome.tabs.query({ active: true, windowId: windowId }, (tabs) => {
-      if (tabs[0]) startTracking(tabs[0].id, tabs[0].url);
+      if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
     });
   }
 });
@@ -161,7 +181,7 @@ chrome.idle.onStateChanged.addListener((state) => {
     stopTracking();
   } else {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) startTracking(tabs[0].id, tabs[0].url);
+      if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
     });
   }
 });
@@ -175,15 +195,26 @@ chrome.runtime.onInstalled.addListener(() => {
       }).catch(() => { });
     });
   });
+
+  // Initialize tracking for the current active tab
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
+  });
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
+  });
 });
 
 chrome.alarms.create('flushStats', { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'flushStats') {
-    if (activeTabId && activeStartTime && activeDomain) {
+    if (activeTabId && activeStartTime && activeUrl) {
       const duration = Math.round((Date.now() - activeStartTime) / 1000);
       if (duration > 0) {
-        saveStats(activeDomain, duration);
+        saveStats(activeDomain, activeUrl, activeTitle, duration);
         activeStartTime = Date.now(); // Reset start time after flushing
       }
     }

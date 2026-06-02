@@ -12,9 +12,11 @@ function updateDashboard() {
         day: 'numeric'
     });
 
-    chrome.storage.local.get(['dailyStats', 'studyDomains'], (data) => {
+    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains'], (data) => {
         const stats = data.dailyStats || {};
+        const urlStats = data.dailyUrlStats || {};
         const todayStats = stats[today] || {};
+        const todayUrlStats = urlStats[today] || {};
         const studyDomains = data.studyDomains || [];
 
         let totalFocusSeconds = 0;
@@ -40,6 +42,9 @@ function updateDashboard() {
             if (mainDistraction) {
                 document.getElementById('topDistraction').textContent = mainDistraction[0];
                 document.getElementById('distractionTime').textContent = formatTime(mainDistraction[1]);
+            } else {
+                document.getElementById('topDistraction').textContent = "None";
+                document.getElementById('distractionTime').textContent = "0m";
             }
         }
 
@@ -62,16 +67,35 @@ function updateDashboard() {
             list.appendChild(li);
         });
 
+        // Update Detailed Activity Table
+        const tableBody = document.getElementById('activityBody');
+        tableBody.innerHTML = '';
+        const sortedUrls = Object.entries(todayUrlStats).sort((a, b) => b[1].duration - a[1].duration);
+
+        sortedUrls.forEach(([url, info]) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+        <td><div class="page-title" title="${info.title}">${info.title}</div></td>
+        <td><span class="domain-badge">${info.domain}</span></td>
+        <td><span class="site-time">${formatTime(info.duration)}</span></td>
+      `;
+            tableBody.appendChild(row);
+        });
+
         // Update Chart
         renderChart(totalFocusSeconds, totalDistractionSeconds);
     });
 }
 
 function formatTime(seconds) {
+    if (!seconds || seconds < 0) return '0s';
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+
     if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
 }
 
 let myChart = null;
