@@ -67,6 +67,29 @@ function updateDashboard() {
         // Update Stats Cards
         document.getElementById('totalFocusTime').textContent = formatTime(totalFocusSeconds);
 
+        // Calculate Comparison with Previous Day
+        const prevDate = new Date(currentViewDate);
+        prevDate.setDate(prevDate.getDate() - 1);
+        const prevDateString = prevDate.toISOString().split('T')[0];
+        const prevDayStats = stats[prevDateString] || {};
+
+        let prevFocusSeconds = 0;
+        Object.entries(prevDayStats).forEach(([domain, seconds]) => {
+            const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+            if (isStudy) prevFocusSeconds += seconds;
+        });
+
+        const trendElement = document.querySelector('.trend');
+        if (prevFocusSeconds > 0) {
+            const diff = totalFocusSeconds - prevFocusSeconds;
+            const percent = Math.abs(Math.round((diff / prevFocusSeconds) * 100));
+            const direction = diff >= 0 ? 'more' : 'less';
+            trendElement.textContent = `Focusing ${percent}% ${direction} than previous day`;
+            trendElement.className = `trend ${diff >= 0 ? 'up' : 'down'}`;
+        } else {
+            trendElement.textContent = "First day of data reached";
+            trendElement.className = "trend";
+        }
         if (sortedSites.length > 0) {
             const mainDistraction = sortedSites.find(([domain]) =>
                 !studyDomains.some(d => domain === d || domain.endsWith('.' + d))

@@ -206,9 +206,47 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
   });
+  checkSummaryNotification();
 });
 
-chrome.alarms.create('flushStats', { periodInMinutes: 1 });
+function checkSummaryNotification() {
+  const today = new Date().toISOString().split('T')[0];
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+  chrome.storage.local.get(['lastSummaryNotifiedDate', 'dailyStats', 'studyDomains'], (data) => {
+    if (data.lastSummaryNotifiedDate === today) return;
+
+    const stats = data.dailyStats || {};
+    const yesterdayStats = stats[yesterday];
+    const studyDomains = data.studyDomains || [];
+
+    if (yesterdayStats) {
+      let focusSeconds = 0;
+      Object.entries(yesterdayStats).forEach(([domain, seconds]) => {
+        const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+        if (isStudy) focusSeconds += seconds;
+      });
+
+      if (focusSeconds > 0) {
+        const h = Math.floor(focusSeconds / 3600);
+        const m = Math.floor((focusSeconds % 3600) / 60);
+        const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+          title: 'Daily Summary',
+          message: `Yesterday you focused for ${timeStr}. Keep up the great work today!`,
+          priority: 2
+        });
+      }
+    }
+    chrome.storage.local.set({ lastSummaryNotifiedDate: today });
+  });
+}
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'flushStats') {
     if (activeTabId && activeStartTime && activeUrl) {
@@ -218,5 +256,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         activeStartTime = Date.now(); // Reset start time after flushing
       }
     }
+    checkSummaryNotification();
   }
 });
