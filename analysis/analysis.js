@@ -95,7 +95,7 @@ function updateDashboard() {
                 !studyDomains.some(d => domain === d || domain.endsWith('.' + d))
             );
             if (mainDistraction) {
-                document.getElementById('topDistraction').textContent = mainDistraction[0];
+                document.getElementById('topDistraction').textContent = getFriendlyName(mainDistraction[0]);
                 document.getElementById('distractionTime').textContent = formatTime(mainDistraction[1]);
             } else {
                 document.getElementById('topDistraction').textContent = "None";
@@ -115,7 +115,7 @@ function updateDashboard() {
             const li = document.createElement('li');
             li.innerHTML = `
         <div class="site-info">
-          <div class="site-name">${domain}</div>
+          <div class="site-name">${getFriendlyName(domain)}</div>
         </div>
         <div class="site-time">${formatTime(seconds)}</div>
       `;
@@ -151,6 +151,19 @@ function formatTime(seconds) {
     if (h > 0) return `${h}h ${m}m`;
     if (m > 0) return `${m}m ${s}s`;
     return `${s}s`;
+}
+
+function getFriendlyName(domain) {
+    if (!domain) return 'None';
+
+    // Remove www.
+    let name = domain.replace(/^www\./i, '');
+
+    // Remove common TLDs
+    name = name.split('.')[0];
+
+    // Capitalize first letter
+    return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 let myChart = null;
