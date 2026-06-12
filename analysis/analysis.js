@@ -1,22 +1,54 @@
+let currentViewDate = new Date();
+
 document.addEventListener('DOMContentLoaded', () => {
     updateDashboard();
-    setInterval(updateDashboard, 10000); // Update every 10 seconds
+
+    // Auto-refresh only if we are looking at today
+    setInterval(() => {
+        if (isToday(currentViewDate)) {
+            updateDashboard();
+        }
+    }, 10000);
+
+    document.getElementById('prevDay').addEventListener('click', () => {
+        currentViewDate.setDate(currentViewDate.getDate() - 1);
+        updateDashboard();
+    });
+
+    document.getElementById('nextDay').addEventListener('click', () => {
+        if (!isToday(currentViewDate)) {
+            currentViewDate.setDate(currentViewDate.getDate() + 1);
+            updateDashboard();
+        }
+    });
 });
 
+function isToday(date) {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear();
+}
+
 function updateDashboard() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+    const dateString = currentViewDate.toISOString().split('T')[0];
+
+    // Update date display
+    document.getElementById('currentDate').textContent = currentViewDate.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric'
     });
 
+    // Disable next button if we are at today
+    document.getElementById('nextDay').disabled = isToday(currentViewDate);
+
     chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains'], (data) => {
         const stats = data.dailyStats || {};
         const urlStats = data.dailyUrlStats || {};
-        const todayStats = stats[today] || {};
-        const todayUrlStats = urlStats[today] || {};
+        const todayStats = stats[dateString] || {};
+        const todayUrlStats = urlStats[dateString] || {};
         const studyDomains = data.studyDomains || [];
 
         let totalFocusSeconds = 0;
