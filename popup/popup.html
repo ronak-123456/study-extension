@@ -21,8 +21,22 @@
       --shadow: 0 10px 24px rgba(90, 153, 123, 0.18);
     }
 
+    body.dark {
+      --bg-1: #1a2a24;
+      --bg-2: #14211c;
+      --card: #1e312a;
+      --text: #eaf7f0;
+      --muted: #8bb3a4;
+      --primary: #6abf9b;
+      --primary-strong: #85d1b3;
+      --primary-soft: #2a4d40;
+      --line: #2d4f41;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
     * {
       box-sizing: border-box;
+      transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
     }
 
     body {
@@ -352,13 +366,71 @@
       display: flex;
       align-items: center;
     }
+
+    .icon-btn {
+      background: var(--primary-soft);
+      border: 1px solid #bce2d0;
+      color: #2f7058;
+      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      padding: 0;
+    }
+
+    body.dark .icon-btn {
+      background: #2a4d40;
+      border-color: #2d4f41;
+      color: #85d1b3;
+    }
+
+    .icon-btn:hover {
+      background: #cdeede;
+      transform: translateY(-1px);
+    }
+
+    body.dark .icon-btn:hover {
+      background: #365d4e;
+    }
+
+    #domainInput {
+      background: var(--card);
+    }
+
+    ul {
+      background: var(--card);
+    }
   </style>
 </head>
 
 <body>
   <div class="popup">
     <div class="header-actions">
-      <span class="badge">Focus</span>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span class="badge">Focus</span>
+        <button id="themeToggle" class="icon-btn" title="Toggle Theme">
+          <svg id="moonIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <svg id="sunIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+            stroke-width="2" style="display:none">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+      </div>
       <div class="toggle-container">
         <span class="toggle-label" id="toggleLabel">Enabled</span>
         <label class="switch">

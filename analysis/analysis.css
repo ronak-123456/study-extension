@@ -7,6 +7,19 @@
   --muted: #64748b;
   --border: rgba(203, 213, 225, 0.5);
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  --header-bg: rgba(255, 255, 255, 0.8);
+}
+
+body.dark {
+  --bg: #0f172a;
+  --card-bg: rgba(30, 41, 59, 0.7);
+  --primary: #6abf9b;
+  --primary-strong: #85d1b3;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --border: rgba(51, 65, 85, 0.5);
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  --header-bg: rgba(15, 23, 42, 0.8);
 }
 
 body {
@@ -16,8 +29,8 @@ body {
   background-image:
     radial-gradient(at 0% 0%, rgba(106, 191, 155, 0.1) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(106, 191, 155, 0.05) 0px, transparent 50%);
-  color: var(--text);
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .container {
@@ -284,8 +297,32 @@ tr:hover td {
 .domain-badge {
   display: inline-block;
   padding: 4px 8px;
-  background: #f1f5f9;
+  background: var(--border);
   border-radius: 6px;
   font-size: 12px;
   color: var(--muted);
+}
+
+.icon-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  color: var(--primary);
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow);
+}
+
+.icon-btn:hover {
+  background: rgba(106, 191, 155, 0.1);
+  transform: translateY(-2px);
+}
+
+th {
+  background: transparent;
 }

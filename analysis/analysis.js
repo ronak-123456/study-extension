@@ -21,7 +21,43 @@ document.addEventListener('DOMContentLoaded', () => {
             updateDashboard();
         }
     });
+
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.body.classList.toggle('dark');
+            chrome.storage.local.set({ theme: isDark ? 'dark' : 'light' });
+            updateThemeUI(isDark);
+            updateDashboard(); // Redraw chart with new colors
+        });
+    }
+
+    // Initialize theme
+    chrome.storage.local.get({ theme: 'light' }, (data) => {
+        const isDark = data.theme === 'dark';
+        document.body.classList.toggle('dark', isDark);
+        updateThemeUI(isDark);
+    });
+
+    // Listen for theme changes from popup
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.theme) {
+            const isDark = changes.theme.newValue === 'dark';
+            document.body.classList.toggle('dark', isDark);
+            updateThemeUI(isDark);
+            updateDashboard();
+        }
+    });
 });
+
+function updateThemeUI(isDark) {
+    const moonIcon = document.getElementById('moonIcon');
+    const sunIcon = document.getElementById('sunIcon');
+    if (moonIcon && sunIcon) {
+        moonIcon.style.display = isDark ? 'none' : 'block';
+        sunIcon.style.display = isDark ? 'block' : 'none';
+    }
+}
 
 function isToday(date) {
     const today = new Date();
@@ -194,6 +230,7 @@ function renderChart(focus, distraction) {
                     labels: {
                         usePointStyle: true,
                         padding: 20,
+                        color: document.body.classList.contains('dark') ? '#94a3b8' : '#64748b',
                         font: {
                             family: "'Inter', sans-serif",
                             size: 14

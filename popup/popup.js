@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const viewStatsBtn = document.getElementById('viewStatsBtn');
   const extensionToggle = document.getElementById('extensionToggle');
   const toggleLabel = document.getElementById('toggleLabel');
+  const themeToggle = document.getElementById('themeToggle');
+  const moonIcon = document.getElementById('moonIcon');
+  const sunIcon = document.getElementById('sunIcon');
 
   loadSettings();
   loadDomains();
@@ -64,11 +67,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  themeToggle.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark');
+    chrome.storage.local.set({ theme: isDark ? 'dark' : 'light' });
+    updateThemeUI(isDark);
+  });
+
   function loadSettings() {
-    chrome.storage.local.get({ extensionEnabled: true }, (data) => {
+    chrome.storage.local.get({ extensionEnabled: true, theme: 'light' }, (data) => {
       extensionToggle.checked = data.extensionEnabled;
       updateToggleUI(data.extensionEnabled);
+
+      const isDark = data.theme === 'dark';
+      document.body.classList.toggle('dark', isDark);
+      updateThemeUI(isDark);
     });
+  }
+
+  function updateThemeUI(isDark) {
+    moonIcon.style.display = isDark ? 'none' : 'block';
+    sunIcon.style.display = isDark ? 'block' : 'none';
   }
 
   function updateToggleUI(isEnabled) {
