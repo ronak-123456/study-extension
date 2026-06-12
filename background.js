@@ -9,6 +9,28 @@ let activeDomain = null;
 let activeUrl = null;
 let activeTitle = null;
 
+let isEnabled = true;
+
+// Initialize isEnabled from storage
+chrome.storage.local.get({ extensionEnabled: true }, (data) => {
+  isEnabled = data.extensionEnabled;
+});
+
+// Listen for storage changes to sync isEnabled
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.extensionEnabled) {
+    isEnabled = changes.extensionEnabled.newValue;
+    if (!isEnabled) {
+      stopTracking();
+    } else {
+      // Re-initialize tracking if we just enabled
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
+      });
+    }
+  }
+});
+
 function getDomain(url) {
   if (!url || isSkippableUrl(url)) return null;
   try {
@@ -33,6 +55,7 @@ function stopTracking() {
 }
 
 function startTracking(tabId, url, title) {
+  if (!isEnabled) return;
   const domain = getDomain(url);
   if (!domain) {
     stopTracking();
@@ -125,7 +148,7 @@ function isSkippableUrl(url) {
 }
 
 function evaluateTab(tab) {
-  if (!tab) return;
+  if (!tab || !isEnabled) return;
   const domain = getDomain(tab.url);
   if (!domain) return;
 

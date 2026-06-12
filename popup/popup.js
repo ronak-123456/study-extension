@@ -7,7 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const countText = document.getElementById('countText');
   const status = document.getElementById('status');
   const viewStatsBtn = document.getElementById('viewStatsBtn');
+  const extensionToggle = document.getElementById('extensionToggle');
+  const toggleLabel = document.getElementById('toggleLabel');
 
+  loadSettings();
   loadDomains();
 
   viewStatsBtn.addEventListener('click', () => {
@@ -53,6 +56,25 @@ document.addEventListener('DOMContentLoaded', () => {
       setStatus('Could not read active tab.', 'error');
     }
   });
+
+  extensionToggle.addEventListener('change', () => {
+    const isEnabled = extensionToggle.checked;
+    chrome.storage.local.set({ extensionEnabled: isEnabled }, () => {
+      updateToggleUI(isEnabled);
+    });
+  });
+
+  function loadSettings() {
+    chrome.storage.local.get({ extensionEnabled: true }, (data) => {
+      extensionToggle.checked = data.extensionEnabled;
+      updateToggleUI(data.extensionEnabled);
+    });
+  }
+
+  function updateToggleUI(isEnabled) {
+    toggleLabel.textContent = isEnabled ? 'Enabled' : 'Disabled';
+    toggleLabel.style.color = isEnabled ? 'var(--primary-strong)' : 'var(--muted)';
+  }
 
   function loadDomains() {
     chrome.storage.local.get({ studyDomains: [] }, (data) => {
