@@ -11,6 +11,9 @@ let activeTitle = null;
 
 let isEnabled = true;
 
+// Timer for badge updates
+let badgeTimerInterval = null;
+
 // Initialize isEnabled from storage
 chrome.storage.local.get({ extensionEnabled: true }, (data) => {
   isEnabled = data.extensionEnabled;
@@ -22,6 +25,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     isEnabled = changes.extensionEnabled.newValue;
     if (!isEnabled) {
       stopTracking();
+      chrome.action.setBadgeText({ text: '' });
     } else {
       // Re-initialize tracking if we just enabled
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -30,6 +34,42 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
   }
 });
+
+function updateBadge() {
+  if (!isEnabled || !activeStartTime) {
+    chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+
+  const durationSec = Math.floor((Date.now() - activeStartTime) / 1000);
+  let badgeText = '';
+
+  if (durationSec < 60) {
+    badgeText = `${durationSec}s`;
+  } else {
+    const mins = Math.floor(durationSec / 60);
+    badgeText = `${mins}m`;
+  }
+
+  chrome.action.setBadgeText({ text: badgeText });
+
+  // Update periodic reminder if on distraction
+  chrome.storage.local.get({ studyDomains: [] }, (data) => {
+    const isStudy = data.studyDomains.some(
+      (allowedDomain) =>
+        activeDomain === allowedDomain || activeDomain.endsWith(`.${allowedDomain}`)
+    );
+
+    chrome.action.setBadgeBackgroundColor({
+      color: isStudy ? '#6abf9b' : '#fca5a5'
+    });
+
+    // Reminder every 5 minutes on distraction
+    if (!isStudy && durationSec > 0 && durationSec % 300 === 0) {
+      triggerFocusNotification(activeTabId, activeDomain);
+    }
+  });
+}
 
 function getDomain(url) {
   if (!url || isSkippableUrl(url)) return null;
@@ -47,6 +87,11 @@ function stopTracking() {
       saveStats(activeDomain, activeUrl, activeTitle, duration);
     }
   }
+  if (badgeTimerInterval) {
+    clearInterval(badgeTimerInterval);
+    badgeTimerInterval = null;
+  }
+  chrome.action.setBadgeText({ text: '' });
   activeTabId = null;
   activeStartTime = null;
   activeDomain = null;
@@ -72,6 +117,11 @@ function startTracking(tabId, url, title) {
   activeDomain = domain;
   activeUrl = url;
   activeTitle = title || 'Untitled Tab';
+
+  if (!badgeTimerInterval) {
+    badgeTimerInterval = setInterval(updateBadge, 1000);
+  }
+  updateBadge();
 }
 
 function saveStats(domain, url, title, duration) {
