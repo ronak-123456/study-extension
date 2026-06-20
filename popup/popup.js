@@ -7,7 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const countText = document.getElementById('countText');
   const status = document.getElementById('status');
   const viewStatsBtn = document.getElementById('viewStatsBtn');
+  const extensionToggle = document.getElementById('extensionToggle');
+  const toggleLabel = document.getElementById('toggleLabel');
+  const themeToggle = document.getElementById('themeToggle');
+  const moonIcon = document.getElementById('moonIcon');
+  const sunIcon = document.getElementById('sunIcon');
 
+  loadSettings();
   loadDomains();
 
   viewStatsBtn.addEventListener('click', () => {
@@ -53,6 +59,40 @@ document.addEventListener('DOMContentLoaded', () => {
       setStatus('Could not read active tab.', 'error');
     }
   });
+
+  extensionToggle.addEventListener('change', () => {
+    const isEnabled = extensionToggle.checked;
+    chrome.storage.local.set({ extensionEnabled: isEnabled }, () => {
+      updateToggleUI(isEnabled);
+    });
+  });
+
+  themeToggle.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark');
+    chrome.storage.local.set({ theme: isDark ? 'dark' : 'light' });
+    updateThemeUI(isDark);
+  });
+
+  function loadSettings() {
+    chrome.storage.local.get({ extensionEnabled: true, theme: 'light' }, (data) => {
+      extensionToggle.checked = data.extensionEnabled;
+      updateToggleUI(data.extensionEnabled);
+
+      const isDark = data.theme === 'dark';
+      document.body.classList.toggle('dark', isDark);
+      updateThemeUI(isDark);
+    });
+  }
+
+  function updateThemeUI(isDark) {
+    moonIcon.style.display = isDark ? 'none' : 'block';
+    sunIcon.style.display = isDark ? 'block' : 'none';
+  }
+
+  function updateToggleUI(isEnabled) {
+    toggleLabel.textContent = isEnabled ? 'Enabled' : 'Disabled';
+    toggleLabel.style.color = isEnabled ? 'var(--primary-strong)' : 'var(--muted)';
+  }
 
   function loadDomains() {
     chrome.storage.local.get({ studyDomains: [] }, (data) => {

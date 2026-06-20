@@ -9,6 +9,68 @@ let activeDomain = null;
 let activeUrl = null;
 let activeTitle = null;
 
+let isEnabled = true;
+
+// Timer for badge updates
+let badgeTimerInterval = null;
+
+// Initialize isEnabled from storage
+chrome.storage.local.get({ extensionEnabled: true }, (data) => {
+  isEnabled = data.extensionEnabled;
+});
+
+// Listen for storage changes to sync isEnabled
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.extensionEnabled) {
+    isEnabled = changes.extensionEnabled.newValue;
+    if (!isEnabled) {
+      stopTracking();
+      chrome.action.setBadgeText({ text: '' });
+    } else {
+      // Re-initialize tracking if we just enabled
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
+      });
+    }
+  }
+});
+
+function updateBadge() {
+  if (!isEnabled || !activeStartTime) {
+    chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+
+  const durationSec = Math.floor((Date.now() - activeStartTime) / 1000);
+  let badgeText = '';
+
+  if (durationSec < 60) {
+    badgeText = `${durationSec}s`;
+  } else {
+    const mins = Math.floor(durationSec / 60);
+    badgeText = `${mins}m`;
+  }
+
+  chrome.action.setBadgeText({ text: badgeText });
+
+  // Update periodic reminder if on distraction
+  chrome.storage.local.get({ studyDomains: [] }, (data) => {
+    const isStudy = data.studyDomains.some(
+      (allowedDomain) =>
+        activeDomain === allowedDomain || activeDomain.endsWith(`.${allowedDomain}`)
+    );
+
+    chrome.action.setBadgeBackgroundColor({
+      color: isStudy ? '#6abf9b' : '#fca5a5'
+    });
+
+    // Reminder every 5 minutes on distraction
+    if (!isStudy && durationSec > 0 && durationSec % 300 === 0) {
+      triggerFocusNotification(activeTabId, activeDomain);
+    }
+  });
+}
+
 function getDomain(url) {
   if (!url || isSkippableUrl(url)) return null;
   try {
@@ -25,6 +87,11 @@ function stopTracking() {
       saveStats(activeDomain, activeUrl, activeTitle, duration);
     }
   }
+  if (badgeTimerInterval) {
+    clearInterval(badgeTimerInterval);
+    badgeTimerInterval = null;
+  }
+  chrome.action.setBadgeText({ text: '' });
   activeTabId = null;
   activeStartTime = null;
   activeDomain = null;
@@ -33,6 +100,7 @@ function stopTracking() {
 }
 
 function startTracking(tabId, url, title) {
+  if (!isEnabled) return;
   const domain = getDomain(url);
   if (!domain) {
     stopTracking();
@@ -49,6 +117,11 @@ function startTracking(tabId, url, title) {
   activeDomain = domain;
   activeUrl = url;
   activeTitle = title || 'Untitled Tab';
+
+  if (!badgeTimerInterval) {
+    badgeTimerInterval = setInterval(updateBadge, 1000);
+  }
+  updateBadge();
 }
 
 function saveStats(domain, url, title, duration) {
@@ -125,7 +198,7 @@ function isSkippableUrl(url) {
 }
 
 function evaluateTab(tab) {
-  if (!tab) return;
+  if (!tab || !isEnabled) return;
   const domain = getDomain(tab.url);
   if (!domain) return;
 
@@ -206,9 +279,47 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
   });
+  checkSummaryNotification();
 });
 
-chrome.alarms.create('flushStats', { periodInMinutes: 1 });
+function checkSummaryNotification() {
+  const today = new Date().toISOString().split('T')[0];
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+  chrome.storage.local.get(['lastSummaryNotifiedDate', 'dailyStats', 'studyDomains'], (data) => {
+    if (data.lastSummaryNotifiedDate === today) return;
+
+    const stats = data.dailyStats || {};
+    const yesterdayStats = stats[yesterday];
+    const studyDomains = data.studyDomains || [];
+
+    if (yesterdayStats) {
+      let focusSeconds = 0;
+      Object.entries(yesterdayStats).forEach(([domain, seconds]) => {
+        const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+        if (isStudy) focusSeconds += seconds;
+      });
+
+      if (focusSeconds > 0) {
+        const h = Math.floor(focusSeconds / 3600);
+        const m = Math.floor((focusSeconds % 3600) / 60);
+        const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+          title: 'Daily Summary',
+          message: `Yesterday you focused for ${timeStr}. Keep up the great work today!`,
+          priority: 2
+        });
+      }
+    }
+    chrome.storage.local.set({ lastSummaryNotifiedDate: today });
+  });
+}
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'flushStats') {
     if (activeTabId && activeStartTime && activeUrl) {
@@ -218,5 +329,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         activeStartTime = Date.now(); // Reset start time after flushing
       }
     }
+    checkSummaryNotification();
   }
 });

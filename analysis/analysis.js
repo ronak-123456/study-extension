@@ -1,22 +1,90 @@
+let currentViewDate = new Date();
+
 document.addEventListener('DOMContentLoaded', () => {
     updateDashboard();
-    setInterval(updateDashboard, 10000); // Update every 10 seconds
+
+    // Auto-refresh only if we are looking at today
+    setInterval(() => {
+        if (isToday(currentViewDate)) {
+            updateDashboard();
+        }
+    }, 10000);
+
+    document.getElementById('prevDay').addEventListener('click', () => {
+        currentViewDate.setDate(currentViewDate.getDate() - 1);
+        updateDashboard();
+    });
+
+    document.getElementById('nextDay').addEventListener('click', () => {
+        if (!isToday(currentViewDate)) {
+            currentViewDate.setDate(currentViewDate.getDate() + 1);
+            updateDashboard();
+        }
+    });
+
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.body.classList.toggle('dark');
+            chrome.storage.local.set({ theme: isDark ? 'dark' : 'light' });
+            updateThemeUI(isDark);
+            updateDashboard(); // Redraw chart with new colors
+        });
+    }
+
+    // Initialize theme
+    chrome.storage.local.get({ theme: 'light' }, (data) => {
+        const isDark = data.theme === 'dark';
+        document.body.classList.toggle('dark', isDark);
+        updateThemeUI(isDark);
+    });
+
+    // Listen for theme changes from popup
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.theme) {
+            const isDark = changes.theme.newValue === 'dark';
+            document.body.classList.toggle('dark', isDark);
+            updateThemeUI(isDark);
+            updateDashboard();
+        }
+    });
 });
 
+function updateThemeUI(isDark) {
+    const moonIcon = document.getElementById('moonIcon');
+    const sunIcon = document.getElementById('sunIcon');
+    if (moonIcon && sunIcon) {
+        moonIcon.style.display = isDark ? 'none' : 'block';
+        sunIcon.style.display = isDark ? 'block' : 'none';
+    }
+}
+
+function isToday(date) {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear();
+}
+
 function updateDashboard() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+    const dateString = currentViewDate.toISOString().split('T')[0];
+
+    // Update date display
+    document.getElementById('currentDate').textContent = currentViewDate.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric'
     });
 
+    // Disable next button if we are at today
+    document.getElementById('nextDay').disabled = isToday(currentViewDate);
+
     chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains'], (data) => {
         const stats = data.dailyStats || {};
         const urlStats = data.dailyUrlStats || {};
-        const todayStats = stats[today] || {};
-        const todayUrlStats = urlStats[today] || {};
+        const todayStats = stats[dateString] || {};
+        const todayUrlStats = urlStats[dateString] || {};
         const studyDomains = data.studyDomains || [];
 
         let totalFocusSeconds = 0;
@@ -35,12 +103,35 @@ function updateDashboard() {
         // Update Stats Cards
         document.getElementById('totalFocusTime').textContent = formatTime(totalFocusSeconds);
 
+        // Calculate Comparison with Previous Day
+        const prevDate = new Date(currentViewDate);
+        prevDate.setDate(prevDate.getDate() - 1);
+        const prevDateString = prevDate.toISOString().split('T')[0];
+        const prevDayStats = stats[prevDateString] || {};
+
+        let prevFocusSeconds = 0;
+        Object.entries(prevDayStats).forEach(([domain, seconds]) => {
+            const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+            if (isStudy) prevFocusSeconds += seconds;
+        });
+
+        const trendElement = document.querySelector('.trend');
+        if (prevFocusSeconds > 0) {
+            const diff = totalFocusSeconds - prevFocusSeconds;
+            const percent = Math.abs(Math.round((diff / prevFocusSeconds) * 100));
+            const direction = diff >= 0 ? 'more' : 'less';
+            trendElement.textContent = `Focusing ${percent}% ${direction} than previous day`;
+            trendElement.className = `trend ${diff >= 0 ? 'up' : 'down'}`;
+        } else {
+            trendElement.textContent = "First day of data reached";
+            trendElement.className = "trend";
+        }
         if (sortedSites.length > 0) {
             const mainDistraction = sortedSites.find(([domain]) =>
                 !studyDomains.some(d => domain === d || domain.endsWith('.' + d))
             );
             if (mainDistraction) {
-                document.getElementById('topDistraction').textContent = mainDistraction[0];
+                document.getElementById('topDistraction').textContent = getFriendlyName(mainDistraction[0]);
                 document.getElementById('distractionTime').textContent = formatTime(mainDistraction[1]);
             } else {
                 document.getElementById('topDistraction').textContent = "None";
@@ -60,7 +151,7 @@ function updateDashboard() {
             const li = document.createElement('li');
             li.innerHTML = `
         <div class="site-info">
-          <div class="site-name">${domain}</div>
+          <div class="site-name">${getFriendlyName(domain)}</div>
         </div>
         <div class="site-time">${formatTime(seconds)}</div>
       `;
@@ -98,6 +189,19 @@ function formatTime(seconds) {
     return `${s}s`;
 }
 
+function getFriendlyName(domain) {
+    if (!domain) return 'None';
+
+    // Remove www.
+    let name = domain.replace(/^www\./i, '');
+
+    // Remove common TLDs
+    name = name.split('.')[0];
+
+    // Capitalize first letter
+    return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 let myChart = null;
 function renderChart(focus, distraction) {
     const ctx = document.getElementById('usageChart').getContext('2d');
@@ -126,6 +230,7 @@ function renderChart(focus, distraction) {
                     labels: {
                         usePointStyle: true,
                         padding: 20,
+                        color: document.body.classList.contains('dark') ? '#94a3b8' : '#64748b',
                         font: {
                             family: "'Inter', sans-serif",
                             size: 14
