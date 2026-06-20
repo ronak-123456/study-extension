@@ -11,15 +11,15 @@
 }
 
 body.dark {
-  --bg: #0f172a;
-  --card-bg: rgba(30, 41, 59, 0.7);
-  --primary: #6abf9b;
-  --primary-strong: #85d1b3;
-  --text: #f8fafc;
-  --muted: #94a3b8;
-  --border: rgba(51, 65, 85, 0.5);
-  --shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  --header-bg: rgba(15, 23, 42, 0.8);
+  --bg: #0a1413;
+  --card-bg: rgba(21, 43, 40, 0.8);
+  --primary: #A5E9DD;
+  --primary-strong: #fdf4af;
+  --text: #A5E9DD;
+  --muted: #6fbeb2;
+  --border: rgba(52, 144, 139, 0.2);
+  --shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  --header-bg: rgba(10, 20, 19, 0.95);
 }
 
 body {
@@ -273,6 +273,11 @@ th {
   border-bottom: 2px solid var(--border);
   font-weight: 600;
   letter-spacing: 0.5px;
+}
+
+body.dark th {
+  color: var(--primary-strong);
+  border-bottom-color: var(--line);
 }
 
 td {
