@@ -50,7 +50,7 @@
       padding: 14px;
       font-family: "Avenir Next", "Segoe UI", Roboto, sans-serif;
       color: var(--text);
-      background: linear-gradient(145deg, var(--bg-1), var(--bg-2));
+      background: var(--bg-1);
     }
 
     .popup {
@@ -86,9 +86,9 @@
       width: 80px;
       height: 80px;
       padding: 4px;
-      background: linear-gradient(135deg, #6abf9b 0%, #ffffff 100%);
+      background: var(--primary);
       border-radius: 22px;
-      box-shadow: 0 0 20px rgba(106, 191, 155, 0.4), 0 8px 16px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 20px rgba(165, 233, 221, 0.4), 0 8px 16px rgba(0, 0, 0, 0.1);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -288,15 +288,20 @@
     .primary-btn {
       width: 100%;
       padding: 12px;
-      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-      color: #fff;
+      background: var(--primary);
+      color: var(--card);
       border: none;
       border-radius: 12px;
       font-size: 14px;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(106, 191, 155, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    body.dark .primary-btn {
+      background: var(--primary);
+      color: var(--bg-1);
     }
 
     .primary-btn:hover {
