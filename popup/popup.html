@@ -25,8 +25,8 @@
       --bg-1: #0a1413;
       --bg-2: #050a09;
       --card: #152b28;
-      --text: #A5E9DD;
-      --muted: #6fbeb2;
+      --text: #FFFFFF;
+      --muted: #a0cec4;
       --primary: #A5E9DD;
       --primary-strong: #fdf4af;
       --primary-soft: #1a3632;
@@ -180,14 +180,28 @@
 
     #domainInput:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(106, 191, 155, 0.2);
+      box-shadow: 0 0 0 3px rgba(165, 233, 221, 0.2);
+    }
+
+    body.dark #domainInput {
+      color: #FFFFFF;
+      background: #1a3632;
+    }
+
+    body.dark #domainInput::placeholder {
+      color: #a0cec4;
     }
 
     #addCustomBtn {
       padding: 9px 12px;
       background: var(--primary);
-      color: #fff;
+      color: var(--bg-1);
       min-width: 64px;
+    }
+
+    body.dark #addCustomBtn {
+      color: #0a1413 !important;
+      background: #A5E9DD;
     }
 
     #addCustomBtn:hover {
@@ -259,6 +273,10 @@
     .domain-name {
       overflow-wrap: anywhere;
       color: #2b5245;
+    }
+
+    body.dark .domain-name {
+      color: #FFFFFF !important;
     }
 
     .delete-btn {
