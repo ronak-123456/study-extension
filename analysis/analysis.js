@@ -22,6 +22,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) {
+        datePicker.addEventListener('change', (e) => {
+            const selectedDate = new Date(e.target.value);
+            // Adjust for timezone offset to keep the local date correct
+            const offset = selectedDate.getTimezoneOffset();
+            selectedDate.setMinutes(selectedDate.getMinutes() + offset);
+
+            if (selectedDate <= new Date()) {
+                currentViewDate = selectedDate;
+                updateDashboard();
+            } else {
+                alert("Cannot view future stats!");
+                updateDashboard(); // Reset picker value
+            }
+        });
+    }
+
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
         themeToggle.addEventListener('click', () => {
@@ -76,6 +94,12 @@ function updateDashboard() {
         month: 'long',
         day: 'numeric'
     });
+
+    // Update date picker value
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) {
+        datePicker.value = currentViewDate.toISOString().split('T')[0];
+    }
 
     // Disable next button if we are at today
     document.getElementById('nextDay').disabled = isToday(currentViewDate);
