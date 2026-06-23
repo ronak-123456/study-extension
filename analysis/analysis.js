@@ -233,7 +233,7 @@ function renderChart(focus, distraction) {
     const distractionPercent = total > 0 ? Math.round((distraction / total) * 100) : 0;
 
     const isDark = document.body.classList.contains('dark');
-    const colors = isDark ? ['#A5E9DD', '#fdf4af'] : ['#6abf9b', '#fca5a5'];
+    const colors = isDark ? ['#FDE047', '#A5E9DD'] : ['#FACC15', '#6abf9b'];
 
     const options = {
         series: [focusPercent, distractionPercent],
@@ -265,7 +265,7 @@ function renderChart(focus, distraction) {
                         fontSize: '24px',
                         fontFamily: 'Inter',
                         fontWeight: 800,
-                        color: isDark ? '#A5E9DD' : '#6abf9b',
+                        color: isDark ? '#FDE047' : '#FACC15',
                         formatter: function (val) {
                             return val + '%'
                         }
