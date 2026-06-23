@@ -279,7 +279,7 @@ function renderChart(focus, distraction) {
                         fontSize: '24px',
                         fontFamily: 'Inter',
                         fontWeight: 800,
-                        color: isDark ? '#FDE047' : '#FACC15',
+                        color: isDark ? '#A5E9DD' : '#6abf9b',
                         formatter: function (val) {
                             return val + '%'
                         }

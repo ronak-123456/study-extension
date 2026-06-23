@@ -174,11 +174,12 @@ h1 {
 
 .stat-card h3 {
   font-size: 14px;
-  color: var(--muted);
+  color: var(--yellow);
   margin: 0 0 12px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  opacity: 0.9;
 }
 
 .stat-card p {
@@ -192,8 +193,7 @@ h1 {
 }
 
 .focus-color {
-  color: var(--yellow) !important;
-  text-shadow: 0 0 15px rgba(253, 224, 71, 0.2);
+  color: var(--primary) !important;
 }
 
 .trend {
@@ -220,7 +220,7 @@ h1 {
   margin: 0 0 24px;
   font-size: 18px;
   font-weight: 700;
-  color: var(--text);
+  color: var(--yellow);
 }
 
 .chart-container {
@@ -303,6 +303,13 @@ h1 {
   .charts {
     grid-template-columns: 1fr;
   }
+}
+
+.detailed-activity h3 {
+  color: var(--yellow);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 20px;
 }
 
 .detailed-activity {
