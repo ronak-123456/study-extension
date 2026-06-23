@@ -22,6 +22,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.getElementById('randomDay').addEventListener('click', () => {
+        chrome.storage.local.get(['dailyStats'], (data) => {
+            const stats = data.dailyStats || {};
+            const dates = Object.keys(stats);
+            if (dates.length > 0) {
+                const randomDateStr = dates[Math.floor(Math.random() * dates.length)];
+                currentViewDate = new Date(randomDateStr + 'T00:00:00');
+                updateDashboard();
+            } else {
+                alert("No history found to pick from!");
+            }
+        });
+    });
+
     const datePicker = document.getElementById('datePicker');
     if (datePicker) {
         datePicker.addEventListener('change', (e) => {
