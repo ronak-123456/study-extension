@@ -28,7 +28,7 @@
       --text: #FFFFFF;
       --muted: #a0cec4;
       --primary: #A5E9DD;
-      --primary-strong: #fdf4af;
+      --primary-strong: #FDE047;
       --primary-soft: #1a3632;
       --line: #34908b;
       --shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
@@ -195,7 +195,7 @@
     #addCustomBtn {
       padding: 9px 12px;
       background: var(--primary);
-      color: var(--bg-1);
+      color: #ffffff;
       min-width: 64px;
     }
 
@@ -216,6 +216,27 @@
       margin-bottom: 8px;
       font-size: 12px;
       color: var(--muted);
+    }
+
+    #statusLabel {
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    #statusLabel.status-on {
+      color: var(--primary-strong);
+    }
+
+    #statusLabel.status-off {
+      color: #94a3b8;
+    }
+
+    body.dark #statusLabel.status-on {
+      color: #A5E9DD;
+    }
+
+    body.dark #statusLabel.status-off {
+      color: #7a8c88;
     }
 
     #status {
@@ -380,7 +401,8 @@
     }
 
     body.dark .slider {
-      background-color: #6fbeb2;
+      background-color: #1a3632;
+      border: 1px solid var(--line);
     }
 
     body.dark input:checked+.slider {
@@ -459,7 +481,7 @@
             stroke-width="2">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
-          <svg id="sunIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+          <svg id="sunIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--primary-strong)"
             stroke-width="2" style="display:none">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>

@@ -22,6 +22,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) {
+        datePicker.addEventListener('change', (e) => {
+            const selectedDate = new Date(e.target.value);
+            // Adjust for timezone offset to keep the local date correct
+            const offset = selectedDate.getTimezoneOffset();
+            selectedDate.setMinutes(selectedDate.getMinutes() + offset);
+
+            if (selectedDate <= new Date()) {
+                currentViewDate = selectedDate;
+                updateDashboard();
+            } else {
+                alert("Cannot view future stats!");
+                updateDashboard(); // Reset picker value
+            }
+        });
+    }
+
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
         themeToggle.addEventListener('click', () => {
@@ -76,6 +94,12 @@ function updateDashboard() {
         month: 'long',
         day: 'numeric'
     });
+
+    // Update date picker value
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) {
+        datePicker.value = currentViewDate.toISOString().split('T')[0];
+    }
 
     // Disable next button if we are at today
     document.getElementById('nextDay').disabled = isToday(currentViewDate);
@@ -204,41 +228,99 @@ function getFriendlyName(domain) {
 
 let myChart = null;
 function renderChart(focus, distraction) {
-    const ctx = document.getElementById('usageChart').getContext('2d');
+    const total = focus + distraction;
+    const focusPercent = total > 0 ? Math.round((focus / total) * 100) : 0;
+    const distractionPercent = total > 0 ? Math.round((distraction / total) * 100) : 0;
+
+    const isDark = document.body.classList.contains('dark');
+    const colors = isDark ? ['#FDE047', '#A5E9DD'] : ['#FACC15', '#6abf9b'];
+
+    const options = {
+        series: [focusPercent, distractionPercent],
+        chart: {
+            height: 350,
+            type: 'radialBar',
+        },
+        plotOptions: {
+            radialBar: {
+                offsetY: 0,
+                startAngle: 0,
+                endAngle: 270,
+                hollow: {
+                    margin: 5,
+                    size: '30%',
+                    background: 'transparent',
+                    image: undefined,
+                },
+                dataLabels: {
+                    name: {
+                        show: true,
+                        fontSize: '16px',
+                        fontFamily: 'Inter',
+                        fontWeight: 600,
+                        color: isDark ? '#FFFFFF' : '#1f3a30',
+                    },
+                    value: {
+                        show: true,
+                        fontSize: '24px',
+                        fontFamily: 'Inter',
+                        fontWeight: 800,
+                        color: isDark ? '#FDE047' : '#FACC15',
+                        formatter: function (val) {
+                            return val + '%'
+                        }
+                    },
+                    total: {
+                        show: true,
+                        label: 'Focus',
+                        color: isDark ? '#a0cec4' : '#64748b',
+                        formatter: function (w) {
+                            return focusPercent + '%'
+                        }
+                    }
+                },
+                track: {
+                    background: isDark ? '#152b28' : '#f1f5f9',
+                    strokeWidth: '100%',
+                }
+            }
+        },
+        colors: colors,
+        labels: ['Focus', 'Distraction'],
+        legend: {
+            show: true,
+            floating: true,
+            fontSize: '14px',
+            position: 'left',
+            offsetX: 0,
+            offsetY: 15,
+            labels: {
+                useSeriesColors: true,
+            },
+            markers: {
+                size: 0
+            },
+            formatter: function (seriesName, opts) {
+                return seriesName + ":  " + opts.w.globals.series[opts.seriesIndex] + "%"
+            },
+            itemMargin: {
+                vertical: 3
+            }
+        },
+        responsive: [{
+            breakpoint: 480,
+            options: {
+                legend: {
+                    show: false
+                }
+            }
+        }]
+    };
 
     if (myChart) {
         myChart.destroy();
     }
 
-    myChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Focus', 'Distraction'],
-            datasets: [{
-                data: [focus, distraction],
-                backgroundColor: ['#6abf9b', '#fca5a5'],
-                borderWidth: 0,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20,
-                        color: document.body.classList.contains('dark') ? '#94a3b8' : '#64748b',
-                        font: {
-                            family: "'Inter', sans-serif",
-                            size: 14
-                        }
-                    }
-                }
-            },
-            cutout: '70%'
-        }
-    });
+    myChart = new ApexCharts(document.querySelector("#usageChart"), options);
+    myChart.render();
 }
