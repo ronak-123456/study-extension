@@ -125,16 +125,27 @@ function updateDashboard() {
         const todayUrlStats = urlStats[dateString] || {};
         const studyDomains = data.studyDomains || [];
 
+        // Group stats by friendly name to handle subdomains (e.g., web.whatsapp.com -> WhatsApp)
+        const groupedStats = {};
+        Object.entries(todayStats).forEach(([domain, seconds]) => {
+            const friendlyName = getFriendlyName(domain);
+            if (!groupedStats[friendlyName]) {
+                groupedStats[friendlyName] = { seconds: 0, isStudy: false };
+            }
+            groupedStats[friendlyName].seconds += seconds;
+            groupedStats[friendlyName].isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+        });
+
+        const sortedGroupedSites = Object.entries(groupedStats).sort((a, b) => b[1].seconds - a[1].seconds);
+
         let totalFocusSeconds = 0;
         let totalDistractionSeconds = 0;
-        const sortedSites = Object.entries(todayStats).sort((a, b) => b[1] - a[1]);
 
-        sortedSites.forEach(([domain, seconds]) => {
-            const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
-            if (isStudy) {
-                totalFocusSeconds += seconds;
+        sortedGroupedSites.forEach(([name, data]) => {
+            if (data.isStudy) {
+                totalFocusSeconds += data.seconds;
             } else {
-                totalDistractionSeconds += seconds;
+                totalDistractionSeconds += data.seconds;
             }
         });
 
@@ -164,13 +175,11 @@ function updateDashboard() {
             trendElement.textContent = "First day of data reached";
             trendElement.className = "trend";
         }
-        if (sortedSites.length > 0) {
-            const mainDistraction = sortedSites.find(([domain]) =>
-                !studyDomains.some(d => domain === d || domain.endsWith('.' + d))
-            );
+        if (sortedGroupedSites.length > 0) {
+            const mainDistraction = sortedGroupedSites.find(([name, data]) => !data.isStudy);
             if (mainDistraction) {
-                document.getElementById('topDistraction').textContent = getFriendlyName(mainDistraction[0]);
-                document.getElementById('distractionTime').textContent = formatTime(mainDistraction[1]);
+                document.getElementById('topDistraction').textContent = mainDistraction[0];
+                document.getElementById('distractionTime').textContent = formatTime(mainDistraction[1].seconds);
             } else {
                 document.getElementById('topDistraction').textContent = "None";
                 document.getElementById('distractionTime').textContent = "0m";
@@ -185,13 +194,13 @@ function updateDashboard() {
         // Update Top Sites List
         const list = document.getElementById('topSitesList');
         list.innerHTML = '';
-        sortedSites.slice(0, 5).forEach(([domain, seconds]) => {
+        sortedGroupedSites.slice(0, 5).forEach(([name, data]) => {
             const li = document.createElement('li');
             li.innerHTML = `
         <div class="site-info">
-          <div class="site-name">${getFriendlyName(domain)}</div>
+          <div class="site-name">${name}</div>
         </div>
-        <div class="site-time">${formatTime(seconds)}</div>
+        <div class="site-time">${formatTime(data.seconds)}</div>
       `;
             list.appendChild(li);
         });
@@ -212,13 +221,13 @@ function updateDashboard() {
         });
 
         // Prepare Data for Detailed Donut Chart
-        const topSitesForChart = sortedSites.slice(0, 6).map(([domain, seconds]) => ({
-            name: getFriendlyName(domain),
-            value: seconds,
-            isStudy: studyDomains.some(d => domain === d || domain.endsWith('.' + d))
+        const topSitesForChart = sortedGroupedSites.slice(0, 6).map(([name, data]) => ({
+            name: name,
+            value: data.seconds,
+            isStudy: data.isStudy
         }));
 
-        const otherSeconds = sortedSites.slice(6).reduce((acc, [_, seconds]) => acc + seconds, 0);
+        const otherSeconds = sortedGroupedSites.slice(6).reduce((acc, [_, data]) => acc + data.seconds, 0);
         if (otherSeconds > 0) {
             topSitesForChart.push({
                 name: 'Other Sites',
@@ -246,13 +255,17 @@ function formatTime(seconds) {
 function getFriendlyName(domain) {
     if (!domain) return 'None';
 
-    // Remove www.
-    let name = domain.replace(/^www\./i, '');
+    // Remove common subdomains like web., mail., drive., etc.
+    let name = domain.replace(/^(www|web|mail|drive|docs|calendar|apps|m)\./i, '');
 
-    // Remove common TLDs
+    // Get the core domain part (before the first dot in what remains)
     name = name.split('.')[0];
 
-    // Capitalize first letter
+    // Handle specific cases or capitalize
+    if (name.toLowerCase() === 'whatsapp') return 'WhatsApp';
+    if (name.toLowerCase() === 'youtube') return 'YouTube';
+    if (name.toLowerCase() === 'github') return 'GitHub';
+
     return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
@@ -267,9 +280,9 @@ function renderChart(siteData) {
     // Generate colors: Teal/Green for Study, Yellow/Orange for Distraction
     const colors = siteData.map(s => {
         if (s.isStudy) {
-            return isDark ? '#2dd4bf' : '#0d9488'; // Darker teal in light mode
+            return isDark ? '#2dd4bf' : '#14b8a6'; // Back to vibrant teal
         } else {
-            return isDark ? '#fbbf24' : '#b45309'; // Deeper amber in light mode
+            return isDark ? '#fbbf24' : '#facc15'; // Back to bright yellow
         }
     });
 

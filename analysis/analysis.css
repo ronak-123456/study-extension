@@ -1,16 +1,15 @@
 :root {
   --bg: #f0f4f8;
   --card-bg: rgba(255, 255, 255, 0.7);
-  --primary: #0d9488;
-  /* Darker Teal for better contrast */
-  /* Mint/Teal */
-  --primary-glow: rgba(13, 148, 136, 0.2);
+  --primary: #14b8a6;
+  /* Vibrant Teal */
+  --primary-glow: rgba(20, 184, 166, 0.2);
   --text: #0f172a;
   --muted: #64748b;
   --border: rgba(255, 255, 255, 0.4);
   --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
   --glass-bg: rgba(255, 255, 255, 0.4);
-  --yellow: #b45309;
+  --yellow: #facc15;
   --accent: #8b5cf6;
 }
 
