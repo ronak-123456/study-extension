@@ -66,7 +66,15 @@ header {
 .brand {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  object-fit: cover;
 }
 
 .brand h1 {
