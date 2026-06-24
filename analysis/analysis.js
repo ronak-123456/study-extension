@@ -211,8 +211,24 @@ function updateDashboard() {
             tableBody.appendChild(row);
         });
 
+        // Prepare Data for Detailed Donut Chart
+        const topSitesForChart = sortedSites.slice(0, 6).map(([domain, seconds]) => ({
+            name: getFriendlyName(domain),
+            value: seconds,
+            isStudy: studyDomains.some(d => domain === d || domain.endsWith('.' + d))
+        }));
+
+        const otherSeconds = sortedSites.slice(6).reduce((acc, [_, seconds]) => acc + seconds, 0);
+        if (otherSeconds > 0) {
+            topSitesForChart.push({
+                name: 'Other Sites',
+                value: otherSeconds,
+                isStudy: false // Default to distraction for others
+            });
+        }
+
         // Update Chart
-        renderChart(totalFocusSeconds, totalDistractionSeconds);
+        renderChart(topSitesForChart);
     });
 }
 
@@ -241,95 +257,112 @@ function getFriendlyName(domain) {
 }
 
 let myChart = null;
-function renderChart(focus, distraction) {
-    const total = focus + distraction;
-    const focusPercent = total > 0 ? Math.round((focus / total) * 100) : 0;
-    const distractionPercent = total > 0 ? Math.round((distraction / total) * 100) : 0;
-
+function renderChart(siteData) {
     const isDark = document.body.classList.contains('dark');
-    // Aligning colors with CSS variables: Focus = Primary (Teal/Green), Distraction = Yellow
-    const focusColor = isDark ? '#A5E9DD' : '#6abf9b';
-    const distractionColor = isDark ? '#FDE047' : '#FACC15';
-    const colors = [focusColor, distractionColor];
+
+    // Sort so study sites might come first or just use the order provided
+    const labels = siteData.map(s => s.name);
+    const series = siteData.map(s => s.value);
+
+    // Generate colors: Teal/Green for Study, Yellow/Orange for Distraction
+    const colors = siteData.map(s => {
+        if (s.isStudy) {
+            return isDark ? '#2dd4bf' : '#0d9488'; // Darker teal in light mode
+        } else {
+            return isDark ? '#fbbf24' : '#b45309'; // Deeper amber in light mode
+        }
+    });
 
     const options = {
-        series: [focusPercent, distractionPercent],
+        series: series,
         chart: {
+            type: 'donut',
             height: '100%',
-            type: 'radialBar',
             animations: {
                 enabled: true,
                 easing: 'easeinout',
                 speed: 800
-            }
+            },
+            fontFamily: 'Outfit, sans-serif'
+        },
+        labels: labels,
+        colors: colors,
+        stroke: {
+            show: false
         },
         plotOptions: {
-            radialBar: {
-                offsetY: 0,
-                startAngle: 0,
-                endAngle: 360,
-                hollow: {
-                    margin: 5,
-                    size: '40%',
-                    background: 'transparent'
-                },
-                track: {
-                    background: isDark ? '#152b28' : '#f1f5f9',
-                    strokeWidth: '95%',
-                    margin: 5
-                },
-                dataLabels: {
-                    name: {
+            pie: {
+                donut: {
+                    size: '75%',
+                    labels: {
                         show: true,
-                        fontSize: '14px',
-                        fontFamily: 'Inter',
-                        fontWeight: 600,
-                        color: isDark ? '#A0CEC4' : '#64748b'
-                    },
-                    value: {
-                        show: true,
-                        fontSize: '22px',
-                        fontFamily: 'Inter',
-                        fontWeight: 800,
-                        color: isDark ? '#FFFFFF' : '#1f3a30',
-                        formatter: function (val) {
-                            return val + '%';
-                        }
-                    },
-                    total: {
-                        show: true,
-                        label: 'Focus',
-                        color: isDark ? '#A0CEC4' : '#64748b',
-                        formatter: function (w) {
-                            return focusPercent + '%';
+                        name: {
+                            show: true,
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            color: isDark ? '#94a3b8' : '#64748b',
+                            offsetY: -10
+                        },
+                        value: {
+                            show: true,
+                            fontSize: '24px',
+                            fontWeight: 800,
+                            color: isDark ? '#f8fafc' : '#0f172a',
+                            offsetY: 10,
+                            formatter: (val) => formatTime(val)
+                        },
+                        total: {
+                            show: true,
+                            label: 'Total Time',
+                            color: isDark ? '#94a3b8' : '#64748b',
+                            formatter: function (w) {
+                                const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
+                                return formatTime(total);
+                            }
                         }
                     }
                 }
             }
         },
-        colors: colors,
-        labels: ['Focus', 'Distraction'],
-        stroke: {
-            lineCap: 'round'
-        },
         legend: {
             show: true,
             position: 'bottom',
             horizontalAlign: 'center',
-            fontSize: '14px',
-            fontFamily: 'Inter',
-            fontWeight: 600,
+            fontSize: '13px',
+            fontWeight: 500,
             labels: {
-                colors: isDark ? '#A0CEC4' : '#64748b'
+                colors: isDark ? '#94a3b8' : '#64748b'
             },
             markers: {
-                radius: 12
+                radius: 12,
+                width: 10,
+                height: 10
             },
             itemMargin: {
-                horizontal: 10,
-                vertical: 5
+                horizontal: 8,
+                vertical: 4
             }
-        }
+        },
+        dataLabels: {
+            enabled: false
+        },
+        tooltip: {
+            theme: isDark ? 'dark' : 'light',
+            y: {
+                formatter: (val) => formatTime(val)
+            }
+        },
+        responsive: [{
+            breakpoint: 480,
+            options: {
+                chart: {
+                    height: 300
+                },
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }]
     };
 
     const chartElement = document.querySelector("#usageChart");
