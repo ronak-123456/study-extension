@@ -472,7 +472,9 @@ function renderWeeklyBarChart(allStats, dates, studyDomains) {
             bar: {
                 horizontal: false,
                 columnWidth: '55%',
-                borderRadius: 8
+                borderRadius: 8,
+                borderRadiusApplication: 'end', // Only round the top (end) of the bars
+                borderRadiusWhenStacked: 'last' // Only round the top of the entire stack
             }
         },
         dataLabels: { enabled: false },
