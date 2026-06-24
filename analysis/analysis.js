@@ -237,7 +237,7 @@ function updateDashboard() {
         updateDetailedTable(urlStats, datesToProcess);
 
         // Insights
-        updateInsights(isWeekly, score);
+
     });
 }
 
@@ -281,15 +281,6 @@ function updateDetailedTable(urlStats, dates) {
     });
 }
 
-function updateInsights(isWeekly, score) {
-    const t = isWeekly ? 'week' : 'day';
-    document.querySelector('.insights-section h3').textContent = `Insights this ${t}`;
-
-    if (score > 70) {
-        document.getElementById('insight1Title').textContent = "Deep work master";
-        document.getElementById('insight1Text').textContent = `Your focus score of ${score} is in the top 10% this ${t}.`;
-    }
-}
 
 function formatTime(seconds) {
     if (!seconds || seconds < 0) return '0s';
