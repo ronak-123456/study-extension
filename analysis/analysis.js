@@ -22,8 +22,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.getElementById('todayBtn').addEventListener('click', () => {
+        currentViewDate = new Date();
+        updateDashboard();
+    });
+
+    const dateDisplay = document.querySelector('.date-display');
     const datePicker = document.getElementById('datePicker');
-    if (datePicker) {
+    if (dateDisplay && datePicker) {
+        dateDisplay.addEventListener('click', () => {
+            try {
+                datePicker.showPicker();
+            } catch (e) {
+                datePicker.focus();
+            }
+        });
+
         datePicker.addEventListener('change', (e) => {
             const selectedDate = new Date(e.target.value);
             // Adjust for timezone offset to keep the local date correct
@@ -265,7 +279,7 @@ function renderChart(focus, distraction) {
                         fontSize: '24px',
                         fontFamily: 'Inter',
                         fontWeight: 800,
-                        color: isDark ? '#FDE047' : '#FACC15',
+                        color: isDark ? '#A5E9DD' : '#6abf9b',
                         formatter: function (val) {
                             return val + '%'
                         }
