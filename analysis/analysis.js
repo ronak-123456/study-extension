@@ -4,6 +4,14 @@ let currentViewMode = 'daily'; // 'daily' or 'weekly'
 document.addEventListener('DOMContentLoaded', () => {
     updateDashboard();
 
+    document.getElementById('focusInfoBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('focusInfoPopup').classList.toggle('active');
+    });
+    document.addEventListener('click', () => {
+        document.getElementById('focusInfoPopup').classList.remove('active');
+    });
+
     // Auto-refresh only if we are looking at today
     setInterval(() => {
         if (isToday(currentViewDate)) {

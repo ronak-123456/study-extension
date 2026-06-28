@@ -27,8 +27,13 @@
             </div>
             <div class="header-right">
                 <div id="focusScoreBadge" class="score-badge">
-                    <span class="score-label">Focus score: <span class="tooltip-trigger" title="Calculated as (Focus Time ÷ Total Time) × 100">?</span></span>
+                    <span class="score-label">Focus score: <span class="tooltip-trigger" id="focusInfoBtn">?</span></span>
                     <span id="focusScore">0</span>
+                    <div class="focus-info-popup" id="focusInfoPopup">
+                        <p><strong>How it's calculated:</strong></p>
+                        <p>Focus Score = (Focus Time ÷ Total Time) × 100</p>
+                        <p>Focus Time is time spent on your study domains. Total Time includes both focus and distraction time.</p>
+                    </div>
                 </div>
                 <div class="date-navigator">
                     <button id="themeToggle" class="icon-btn" title="Toggle Theme">
