@@ -651,3 +651,53 @@ td {
   background: var(--primary);
   border-radius: 4px;
 }
+
+/* Heatmap */
+.heatmap-section .card {
+  padding: 24px;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.heatmap-hour {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend-scale {
+  display: flex;
+  gap: 3px;
+}
+
+.legend-cell {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background-color: hsl(160, 70%, 50%);
+}

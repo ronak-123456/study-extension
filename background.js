@@ -126,9 +126,11 @@ function startTracking(tabId, url, title) {
 
 function saveStats(domain, url, title, duration) {
   const today = new Date().toISOString().split('T')[0];
-  chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {} }, (data) => {
+  const hour = new Date().getHours();
+  chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {}, hourlyStats: {} }, (data) => {
     const stats = data.dailyStats;
     const urlStats = data.dailyUrlStats;
+    const hourly = data.hourlyStats;
 
     // Update domain stats
     if (!stats[today]) stats[today] = {};
@@ -144,7 +146,15 @@ function saveStats(domain, url, title, duration) {
     // Always update title in case it changed
     urlStats[today][url].title = title || urlStats[today][url].title;
 
-    chrome.storage.local.set({ dailyStats: stats, dailyUrlStats: urlStats });
+    // Update hourly stats
+    if (!hourly[today]) hourly[today] = {};
+    if (!hourly[today][hour]) hourly[today][hour] = { focus: 0, distraction: 0 };
+    chrome.storage.local.get({ studyDomains: [] }, (sd) => {
+      const isStudy = sd.studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+      if (isStudy) hourly[today][hour].focus += duration;
+      else hourly[today][hour].distraction += duration;
+      chrome.storage.local.set({ dailyStats: stats, dailyUrlStats: urlStats, hourlyStats: hourly });
+    });
   });
 }
 

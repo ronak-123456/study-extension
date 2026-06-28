@@ -177,10 +177,11 @@ function updateDashboard() {
     if (datePicker) datePicker.value = dateString;
     document.getElementById('nextDay').disabled = isToday(currentViewDate);
 
-    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains'], (data) => {
+    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains', 'hourlyStats'], (data) => {
         const stats = data.dailyStats || {};
         const urlStats = data.dailyUrlStats || {};
         const studyDomains = data.studyDomains || [];
+        const hourlyStats = data.hourlyStats || {};
 
         let focusSeconds = 0;
         let distractionSeconds = 0;
@@ -263,6 +264,9 @@ function updateDashboard() {
 
         // Detailed Table
         updateDetailedTable(urlStats, datesToProcess);
+
+        // Heatmap
+        renderHeatmap(hourlyStats, datesToProcess);
 
         // Insights
 
@@ -537,4 +541,34 @@ function renderWeeklyBarChart(allStats, dates, studyDomains) {
     if (myChart) myChart.destroy();
     myChart = new ApexCharts(chartElement, options);
     myChart.render();
+}
+
+function renderHeatmap(hourlyStats, dates) {
+    const grid = document.getElementById('heatmapGrid');
+    grid.innerHTML = '';
+    // Aggregate hourly data across selected dates
+    const hourData = Array(24).fill(null).map(() => ({ focus: 0, distraction: 0 }));
+    dates.forEach(date => {
+        const day = hourlyStats[date] || {};
+        Object.entries(day).forEach(([h, val]) => {
+            hourData[parseInt(h)].focus += val.focus;
+            hourData[parseInt(h)].distraction += val.distraction;
+        });
+    });
+    const maxTotal = Math.max(...hourData.map(h => h.focus + h.distraction), 1);
+    for (let h = 0; h < 24; h++) {
+        const cell = document.createElement('div');
+        cell.className = 'heatmap-cell';
+        const total = hourData[h].focus + hourData[h].distraction;
+        const focusRatio = total > 0 ? hourData[h].focus / total : 0;
+        const intensity = total / maxTotal;
+        // Green if focused, red if distracted, opacity = activity level
+        const hue = focusRatio >= 0.5 ? 160 : 0;
+        const sat = total > 0 ? 70 : 0;
+        cell.style.backgroundColor = `hsla(${hue}, ${sat}%, 50%, ${Math.max(intensity * 0.9, 0.08)})`;
+        const label = h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`;
+        cell.innerHTML = `<span class="heatmap-hour">${label}</span>`;
+        cell.title = total > 0 ? `${label}: ${formatTime(hourData[h].focus)} focus, ${formatTime(hourData[h].distraction)} distracted` : `${label}: No activity`;
+        grid.appendChild(cell);
+    }
 }
