@@ -16,12 +16,27 @@
     <div class="container">
         <header>
             <div class="header-left">
-                <img src="../logo.jpg" class="logo">
-                <h1>Focus Flow Dashboard</h1>
+                <div class="brand">
+                    <img src="../logo.jpg" class="logo">
+                    <h1>Your focus report</h1>
+                </div>
+                <div class="view-toggle">
+                    <button id="dailyTab" class="tab-btn active">Daily</button>
+                    <button id="weeklyTab" class="tab-btn">Weekly</button>
+                </div>
             </div>
             <div class="header-right">
+                <div id="focusScoreBadge" class="score-badge">
+                    <span class="score-label">Focus score: <span class="tooltip-trigger" id="focusInfoBtn">?</span></span>
+                    <span id="focusScore">0</span>
+                    <div class="focus-info-popup" id="focusInfoPopup">
+                        <p><strong>How it's calculated:</strong></p>
+                        <p>Focus Score = (Focus Time ÷ Total Time) × 100</p>
+                        <p>Focus Time is time spent on your study domains. Total Time includes both focus and distraction time.</p>
+                    </div>
+                </div>
                 <div class="date-navigator">
-                    <button id="themeToggle" class="icon-btn" title="Toggle Theme" style="margin-right: 8px;">
+                    <button id="themeToggle" class="icon-btn" title="Toggle Theme">
                         <svg id="moonIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -39,22 +54,15 @@
                             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                         </svg>
                     </button>
-                    <button id="todayBtn" class="nav-btn" title="Back to Today" style="margin-right: 4px;">
+                    <button id="todayBtn" class="nav-btn" title="Back to Today">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                             <polyline points="9 22 9 12 15 12 15 22"></polyline>
                         </svg>
                     </button>
-                    <button id="prevDay" class="nav-btn" title="Previous Day">&larr;</button>
+                    <button id="prevDay" class="nav-btn">&larr;</button>
                     <div class="date-display">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-                            stroke-width="2" style="margin-right: 8px; opacity: 0.7;">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
                         <span id="currentDate"></span>
                         <input type="date" id="datePicker" class="date-input">
                     </div>
@@ -66,38 +74,70 @@
         <main>
             <section class="stats-grid">
                 <div class="card stat-card">
-                    <h3>Total Focus Time</h3>
-                    <p id="totalFocusTime" class="focus-color">0h 0m</p>
-                    <div class="trend up">Focusing 12% more than yesterday</div>
+                    <h3>Deep Work</h3>
+                    <p id="totalFocusTime" class="focus-color">0m</p>
+                    <div id="focusTrend" class="trend up">+0m vs previous</div>
                 </div>
                 <div class="card stat-card">
-                    <h3>Top Distraction</h3>
-                    <p id="topDistraction">None</p>
-                    <span class="muted" id="distractionTime">0m</span>
+                    <h3>Distracted Time</h3>
+                    <p id="totalDistractionTime" class="distraction-color">0m</p>
+                    <div id="distractionTrend" class="trend down">-0m vs previous</div>
                 </div>
                 <div class="card stat-card">
-                    <h3>Study Efficiency</h3>
-                    <p id="focusRatio" class="focus-color">0%</p>
-                    <div class="progress-bar">
-                        <div id="ratioProgress" class="progress" style="width: 0%"></div>
-                    </div>
+                    <h3>🔥 Streak</h3>
+                    <p id="streakCount">0 days</p>
+                    <span class="muted">Min 10 min/day to maintain</span>
+                </div>
+                <div class="card stat-card">
+                    <h3>Sites Visited</h3>
+                    <p id="sitesVisitedCount">0</p>
+                    <span id="siteTrend" class="trend">+0 vs previous</span>
                 </div>
             </section>
 
             <section class="charts">
                 <div class="card chart-card">
-                    <h3>Usage Distribution</h3>
+                    <h3 id="chartTitle">Usage Distribution</h3>
                     <div class="chart-container">
                         <div id="usageChart"></div>
                     </div>
                 </div>
                 <div class="card top-sites">
-                    <h3>Top Websites</h3>
+                    <h3 id="topSitesTitle">Top Websites</h3>
                     <ul id="topSitesList">
                         <!-- Populated via JS -->
                     </ul>
                 </div>
             </section>
+
+            <section class="category-section">
+                <div class="card">
+                    <h3>Category Breakdown</h3>
+                    <p class="muted">Auto-categorized time by site type</p>
+                    <div class="category-grid" id="categoryGrid"></div>
+                </div>
+            </section>
+
+
+            <section class="heatmap-section">
+                <div class="card">
+                    <h3>Focus Heatmap</h3>
+                    <p class="muted">When you're most focused during the day</p>
+                    <div class="heatmap-grid" id="heatmapGrid"></div>
+                    <div class="heatmap-legend">
+                        <span>Less focused</span>
+                        <div class="legend-scale">
+                            <span class="legend-cell" style="opacity:0.2"></span>
+                            <span class="legend-cell" style="opacity:0.4"></span>
+                            <span class="legend-cell" style="opacity:0.6"></span>
+                            <span class="legend-cell" style="opacity:0.8"></span>
+                            <span class="legend-cell" style="opacity:1"></span>
+                        </div>
+                        <span>Most focused</span>
+                    </div>
+                </div>
+            </section>
+
             <section class="detailed-activity">
                 <div class="card activity-card">
                     <h3>Detailed activity</h3>
@@ -117,6 +157,7 @@
                     </div>
                 </div>
             </section>
+
         </main>
     </div>
     <script src="analysis.js"></script>
