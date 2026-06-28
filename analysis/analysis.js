@@ -546,29 +546,81 @@ function renderWeeklyBarChart(allStats, dates, studyDomains) {
 function renderHeatmap(hourlyStats, dates) {
     const grid = document.getElementById('heatmapGrid');
     grid.innerHTML = '';
-    // Aggregate hourly data across selected dates
-    const hourData = Array(24).fill(null).map(() => ({ focus: 0, distraction: 0 }));
-    dates.forEach(date => {
-        const day = hourlyStats[date] || {};
+    const isWeekly = dates.length > 1;
+
+    if (isWeekly) {
+        // Date-wise rows
+        grid.classList.add('heatmap-weekly');
+        grid.classList.remove('heatmap-daily');
+        // Header row
+        const corner = document.createElement('div');
+        corner.className = 'heatmap-header-cell';
+        grid.appendChild(corner);
+        for (let h = 0; h < 24; h++) {
+            const hdr = document.createElement('div');
+            hdr.className = 'heatmap-header-cell';
+            hdr.textContent = formatHour(h);
+            grid.appendChild(hdr);
+        }
+        // Find max for color scaling
+        let maxTotal = 0;
+        dates.forEach(date => {
+            const day = hourlyStats[date] || {};
+            Object.values(day).forEach(v => { maxTotal = Math.max(maxTotal, v.focus + v.distraction); });
+        });
+        maxTotal = maxTotal || 1;
+        // Date rows (oldest first)
+        [...dates].reverse().forEach(date => {
+            const d = new Date(date + 'T00:00:00');
+            const label = document.createElement('div');
+            label.className = 'heatmap-row-label';
+            label.textContent = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+            grid.appendChild(label);
+            const day = hourlyStats[date] || {};
+            for (let h = 0; h < 24; h++) {
+                const cell = document.createElement('div');
+                cell.className = 'heatmap-cell';
+                const val = day[h] || { focus: 0, distraction: 0 };
+                const total = val.focus + val.distraction;
+                const focusRatio = total > 0 ? val.focus / total : 0;
+                const intensity = total / maxTotal;
+                const hue = focusRatio >= 0.5 ? 160 : 0;
+                const sat = total > 0 ? 70 : 0;
+                cell.style.backgroundColor = `hsla(${hue}, ${sat}%, 50%, ${Math.max(intensity * 0.9, 0.06)})`;
+                cell.title = total > 0 ? `${formatHour(h)}: ${formatTime(val.focus)} focus, ${formatTime(val.distraction)} distracted` : `${formatHour(h)}: No activity`;
+                grid.appendChild(cell);
+            }
+        });
+    } else {
+        // Single day - 2 rows of 12
+        grid.classList.add('heatmap-daily');
+        grid.classList.remove('heatmap-weekly');
+        const hourData = Array(24).fill(null).map(() => ({ focus: 0, distraction: 0 }));
+        const day = hourlyStats[dates[0]] || {};
         Object.entries(day).forEach(([h, val]) => {
             hourData[parseInt(h)].focus += val.focus;
             hourData[parseInt(h)].distraction += val.distraction;
         });
-    });
-    const maxTotal = Math.max(...hourData.map(h => h.focus + h.distraction), 1);
-    for (let h = 0; h < 24; h++) {
-        const cell = document.createElement('div');
-        cell.className = 'heatmap-cell';
-        const total = hourData[h].focus + hourData[h].distraction;
-        const focusRatio = total > 0 ? hourData[h].focus / total : 0;
-        const intensity = total / maxTotal;
-        // Green if focused, red if distracted, opacity = activity level
-        const hue = focusRatio >= 0.5 ? 160 : 0;
-        const sat = total > 0 ? 70 : 0;
-        cell.style.backgroundColor = `hsla(${hue}, ${sat}%, 50%, ${Math.max(intensity * 0.9, 0.08)})`;
-        const label = h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`;
-        cell.innerHTML = `<span class="heatmap-hour">${label}</span>`;
-        cell.title = total > 0 ? `${label}: ${formatTime(hourData[h].focus)} focus, ${formatTime(hourData[h].distraction)} distracted` : `${label}: No activity`;
-        grid.appendChild(cell);
+        const maxTotal = Math.max(...hourData.map(h => h.focus + h.distraction), 1);
+        for (let h = 0; h < 24; h++) {
+            const cell = document.createElement('div');
+            cell.className = 'heatmap-cell';
+            const total = hourData[h].focus + hourData[h].distraction;
+            const focusRatio = total > 0 ? hourData[h].focus / total : 0;
+            const intensity = total / maxTotal;
+            const hue = focusRatio >= 0.5 ? 160 : 0;
+            const sat = total > 0 ? 70 : 0;
+            cell.style.backgroundColor = `hsla(${hue}, ${sat}%, 50%, ${Math.max(intensity * 0.9, 0.06)})`;
+            cell.innerHTML = `<span class="heatmap-hour">${formatHour(h)}</span>`;
+            cell.title = total > 0 ? `${formatHour(h)}: ${formatTime(hourData[h].focus)} focus, ${formatTime(hourData[h].distraction)} distracted` : `${formatHour(h)}: No activity`;
+            grid.appendChild(cell);
+        }
     }
+}
+
+function formatHour(h) {
+    if (h === 0) return '12 AM';
+    if (h < 12) return h + ' AM';
+    if (h === 12) return '12 PM';
+    return (h - 12) + ' PM';
 }
