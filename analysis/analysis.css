@@ -687,7 +687,13 @@ td {
 }
 
 .category-icon {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--border);
 }
 
 .category-name {
