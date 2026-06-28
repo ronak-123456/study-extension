@@ -134,6 +134,20 @@ header {
   color: var(--primary);
 }
 
+.tooltip-trigger {
+  cursor: help;
+  font-size: 12px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
 #focusScore {
   font-size: 18px;
   font-weight: 800;
