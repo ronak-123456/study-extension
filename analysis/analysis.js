@@ -135,6 +135,26 @@ function isToday(date) {
         date.getFullYear() === today.getFullYear();
 }
 
+function calculateStreak(stats, studyDomains) {
+    let streak = 0;
+    const today = new Date();
+    for (let i = 0; i < 365; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayStats = stats[dateStr] || {};
+        let focusSec = 0;
+        Object.entries(dayStats).forEach(([domain, seconds]) => {
+            if (studyDomains.some(sd => domain === sd || domain.endsWith('.' + sd))) {
+                focusSec += seconds;
+            }
+        });
+        if (focusSec >= 600) streak++;
+        else break;
+    }
+    return streak;
+}
+
 function updateDashboard() {
     const isWeekly = currentViewMode === 'weekly';
     const dateString = currentViewDate.toISOString().split('T')[0];
@@ -202,9 +222,9 @@ function updateDashboard() {
         document.getElementById('totalDistractionTime').textContent = formatTime(distractionSeconds);
         document.getElementById('sitesVisitedCount').textContent = sitesVisited.size;
 
-        // Simulated Longest Streak (could be calculated from more detailed data if available)
-        const longestSession = isWeekly ? Math.round(focusSeconds / 7.5) : focusSeconds;
-        document.getElementById('longestStreak').textContent = formatTime(Math.min(longestSession, 10800)); // cap at 3h for realism
+        // Streak
+        const streak = calculateStreak(stats, studyDomains);
+        document.getElementById('streakCount').textContent = `${streak} day${streak !== 1 ? 's' : ''}`;
 
         // Focus Score
         const total = focusSeconds + distractionSeconds;
