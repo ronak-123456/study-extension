@@ -657,6 +657,72 @@ td {
   margin-top: 24px;
 }
 
+/* Categories */
+.category-section {
+  margin-top: 24px;
+}
+
+.category-section .card {
+  padding: 28px 32px;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.category-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-icon {
+  font-size: 18px;
+}
+
+.category-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.category-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.category-time {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 8px 0;
+}
+
+.category-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.category-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
 .heatmap-section .card {
   padding: 28px 32px;
 }

@@ -268,6 +268,9 @@ function updateDashboard() {
         // Heatmap
         renderHeatmap(hourlyStats, datesToProcess);
 
+        // Categories
+        renderCategories(stats, datesToProcess);
+
         // Insights
 
     });
@@ -541,6 +544,68 @@ function renderWeeklyBarChart(allStats, dates, studyDomains) {
     if (myChart) myChart.destroy();
     myChart = new ApexCharts(chartElement, options);
     myChart.render();
+}
+
+const SITE_CATEGORIES = {
+    'Social Media': ['facebook.com','instagram.com','twitter.com','x.com','reddit.com','linkedin.com','snapchat.com','tiktok.com','threads.net','mastodon.social'],
+    'Video & Streaming': ['youtube.com','netflix.com','twitch.tv','hotstar.com','primevideo.com','disneyplus.com','vimeo.com','dailymotion.com'],
+    'Dev Tools': ['github.com','gitlab.com','stackoverflow.com','codepen.io','replit.com','vercel.app','netlify.app','heroku.com','aws.amazon.com','console.cloud.google.com'],
+    'Research & Learning': ['scholar.google.com','wikipedia.org','medium.com','arxiv.org','coursera.org','udemy.com','khanacademy.org','edx.org','geeksforgeeks.org','w3schools.com'],
+    'Communication': ['mail.google.com','outlook.com','slack.com','discord.com','teams.microsoft.com','telegram.org','web.whatsapp.com','zoom.us'],
+    'Productivity': ['notion.so','docs.google.com','drive.google.com','trello.com','asana.com','todoist.com','figma.com','canva.com','sheets.google.com'],
+    'Shopping & News': ['amazon.com','flipkart.com','myntra.com','news.google.com','bbc.com','cnn.com'],
+    'AI Tools': ['chat.openai.com','claude.ai','bard.google.com','copilot.microsoft.com','perplexity.ai']
+};
+
+function categorize(domain) {
+    for (const [category, domains] of Object.entries(SITE_CATEGORIES)) {
+        if (domains.some(d => domain === d || domain.endsWith('.' + d.split('.').slice(-2).join('.')))) return category;
+    }
+    return 'Other';
+}
+
+const CATEGORY_ICONS = {
+    'Social Media': '📱', 'Video & Streaming': '🎬', 'Dev Tools': '💻',
+    'Research & Learning': '📚', 'Communication': '💬', 'Productivity': '⚡',
+    'Shopping & News': '🛒', 'AI Tools': '🤖', 'Other': '🌐'
+};
+
+const CATEGORY_COLORS = {
+    'Social Media': '#f472b6', 'Video & Streaming': '#fb923c', 'Dev Tools': '#34d399',
+    'Research & Learning': '#60a5fa', 'Communication': '#a78bfa', 'Productivity': '#fbbf24',
+    'Shopping & News': '#f87171', 'AI Tools': '#2dd4bf', 'Other': '#94a3b8'
+};
+
+function renderCategories(stats, dates) {
+    const categoryTotals = {};
+    dates.forEach(date => {
+        const dayStats = stats[date] || {};
+        Object.entries(dayStats).forEach(([domain, seconds]) => {
+            const cat = categorize(domain);
+            categoryTotals[cat] = (categoryTotals[cat] || 0) + seconds;
+        });
+    });
+    const sorted = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+    const totalTime = sorted.reduce((sum, [, s]) => sum + s, 0) || 1;
+    const grid = document.getElementById('categoryGrid');
+    grid.innerHTML = '';
+    sorted.forEach(([cat, seconds]) => {
+        const pct = Math.round((seconds / totalTime) * 100);
+        const card = document.createElement('div');
+        card.className = 'category-card';
+        card.innerHTML = `
+            <div class="category-header">
+                <span class="category-icon">${CATEGORY_ICONS[cat] || '🌐'}</span>
+                <span class="category-name">${cat}</span>
+                <span class="category-pct">${pct}%</span>
+            </div>
+            <div class="category-time">${formatTime(seconds)}</div>
+            <div class="category-bar">
+                <div class="category-bar-fill" style="width:${pct}%;background:${CATEGORY_COLORS[cat] || '#94a3b8'}"></div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
 }
 
 function renderHeatmap(hourlyStats, dates) {
