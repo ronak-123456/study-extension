@@ -311,10 +311,19 @@ header {
 .trend {
   font-size: 13px;
   font-weight: 500;
+  color: var(--muted);
 }
 
 .trend.up {
   color: #10b981;
+}
+
+.trend.down {
+  color: #ef4444;
+}
+
+.trend.neutral {
+  color: var(--muted);
 }
 
 .charts {
