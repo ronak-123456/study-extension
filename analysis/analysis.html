@@ -193,16 +193,46 @@
                                 <option value="dailyHours">Daily Focus Hours</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label for="milestoneTarget">Target Value</label>
-                            <input type="number" id="milestoneTarget" placeholder="e.g., 5" required min="1" max="9999">
-                            <span class="form-hint" id="milestoneHint">Hours of total focus time</span>
+                        <div class="form-group" id="targetTimeGroup">
+                            <label>Target Time</label>
+                            <div class="time-input-row">
+                                <div class="time-input-unit">
+                                    <input type="number" id="milestoneHours" placeholder="0" min="0" max="9999" value="0">
+                                    <span class="time-label">hrs</span>
+                                </div>
+                                <span class="time-separator">:</span>
+                                <div class="time-input-unit">
+                                    <input type="number" id="milestoneMinutes" placeholder="0" min="0" max="59" value="0">
+                                    <span class="time-label">min</span>
+                                </div>
+                                <span class="time-separator">:</span>
+                                <div class="time-input-unit">
+                                    <input type="number" id="milestoneSeconds" placeholder="0" min="0" max="59" value="0">
+                                    <span class="time-label">sec</span>
+                                </div>
+                            </div>
+                            <span class="form-hint" id="milestoneHint">Set the target focus duration</span>
+                        </div>
+                        <div class="form-group" id="targetStreakGroup" style="display:none;">
+                            <label for="milestoneStreakDays">Target Days</label>
+                            <input type="number" id="milestoneStreakDays" placeholder="e.g., 7" min="1" max="9999">
+                            <span class="form-hint">Number of consecutive days</span>
                         </div>
                         <div class="form-group">
-                            <label for="milestoneColor">Badge Color</label>
-                            <div class="color-picker-row">
-                                <input type="color" id="milestoneColor" value="#6366f1">
-                                <span class="color-preview" id="colorPreview" style="background:#6366f1;"></span>
+                            <label>Badge Color</label>
+                            <div class="color-swatch-grid" id="colorSwatchGrid">
+                                <button type="button" class="color-swatch selected" data-color="#6366f1" style="background:#6366f1;" title="Indigo"></button>
+                                <button type="button" class="color-swatch" data-color="#ef4444" style="background:#ef4444;" title="Red"></button>
+                                <button type="button" class="color-swatch" data-color="#f59e0b" style="background:#f59e0b;" title="Amber"></button>
+                                <button type="button" class="color-swatch" data-color="#22c55e" style="background:#22c55e;" title="Green"></button>
+                                <button type="button" class="color-swatch" data-color="#14b8a6" style="background:#14b8a6;" title="Teal"></button>
+                                <button type="button" class="color-swatch" data-color="#3b82f6" style="background:#3b82f6;" title="Blue"></button>
+                                <button type="button" class="color-swatch" data-color="#a855f7" style="background:#a855f7;" title="Purple"></button>
+                                <button type="button" class="color-swatch" data-color="#ec4899" style="background:#ec4899;" title="Pink"></button>
+                                <button type="button" class="color-swatch" data-color="#fb923c" style="background:#fb923c;" title="Orange"></button>
+                                <button type="button" class="color-swatch" data-color="#fbbf24" style="background:#fbbf24;" title="Yellow"></button>
+                                <button type="button" class="color-swatch" data-color="#06b6d4" style="background:#06b6d4;" title="Cyan"></button>
+                                <button type="button" class="color-swatch" data-color="#64748b" style="background:#64748b;" title="Slate"></button>
                             </div>
                         </div>
                         <div class="form-group">
