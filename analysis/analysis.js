@@ -279,6 +279,9 @@ function updateDashboard() {
         // Categories
         renderCategories(stats, datesToProcess);
 
+        // Milestones
+        renderMilestones(stats, studyDomains, hourlyStats);
+
         // Insights
 
     });
@@ -702,6 +705,108 @@ function formatHour(h) {
     if (h < 12) return h + ' AM';
     if (h === 12) return '12 PM';
     return (h - 12) + ' PM';
+}
+
+
+const MILESTONES = [
+    // Streak badges
+    { id: 'streak3', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>', title: 'Warming Up', desc: '3 day streak', check: (d) => d.streak >= 3, color: '#fb923c' },
+    { id: 'streak7', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>', title: 'On Fire', desc: '7 day streak', check: (d) => d.streak >= 7, color: '#ef4444' },
+    { id: 'streak30', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>', title: 'Unstoppable', desc: '30 day streak', check: (d) => d.streak >= 30, color: '#a855f7' },
+    // Total hours
+    { id: 'hours1', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', title: 'First Hour', desc: '1 hour total focus', check: (d) => d.totalHours >= 1, color: '#60a5fa' },
+    { id: 'hours10', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', title: 'Dedicated', desc: '10 hours total focus', check: (d) => d.totalHours >= 10, color: '#34d399' },
+    { id: 'hours50', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', title: 'Scholar', desc: '50 hours total focus', check: (d) => d.totalHours >= 50, color: '#f59e0b' },
+    { id: 'hours100', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', title: 'Centurion', desc: '100 hours total focus', check: (d) => d.totalHours >= 100, color: '#ec4899' },
+    // Score thresholds
+    { id: 'score70', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>', title: 'Focused', desc: '70% score for 7 days', check: (d) => d.highScoreDays >= 7, color: '#14b8a6' },
+    { id: 'score90', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>', title: 'Laser Focus', desc: '90% score for 3 days', check: (d) => d.eliteScoreDays >= 3, color: '#fbbf24' },
+    // Special
+    { id: 'noDistract', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', title: 'Zero Distractions', desc: 'A full day with 100% focus', check: (d) => d.perfectDays >= 1, color: '#22c55e' },
+    { id: 'earlyBird', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>', title: 'Early Bird', desc: 'Focused before 8 AM', check: (d) => d.earlyBird, color: '#fbbf24' },
+];
+
+function computeMilestoneData(stats, studyDomains, hourlyStats) {
+    let totalFocusSeconds = 0;
+    let streak = 0;
+    let highScoreDays = 0;
+    let eliteScoreDays = 0;
+    let perfectDays = 0;
+    let earlyBird = false;
+
+    const today = new Date();
+    const allDates = Object.keys(stats).sort();
+
+    // Total focus hours & score days
+    allDates.forEach(date => {
+        const dayStats = stats[date] || {};
+        let dayFocus = 0;
+        let dayDistraction = 0;
+        Object.entries(dayStats).forEach(([domain, seconds]) => {
+            if (studyDomains.some(d => domain === d || domain.endsWith('.' + d))) dayFocus += seconds;
+            else dayDistraction += seconds;
+        });
+        totalFocusSeconds += dayFocus;
+        const total = dayFocus + dayDistraction;
+        const score = total > 0 ? (dayFocus / total) * 100 : 0;
+        if (score >= 70 && total > 600) highScoreDays++;
+        if (score >= 90 && total > 600) eliteScoreDays++;
+        if (score === 100 && dayFocus >= 600) perfectDays++;
+    });
+
+    // Streak
+    for (let i = 0; i < 365; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayStats = stats[dateStr] || {};
+        let focusSec = 0;
+        Object.entries(dayStats).forEach(([domain, seconds]) => {
+            if (studyDomains.some(sd => domain === sd || domain.endsWith('.' + sd))) focusSec += seconds;
+        });
+        if (focusSec >= 600) streak++;
+        else break;
+    }
+
+    // Early bird check
+    if (hourlyStats) {
+        Object.entries(hourlyStats).forEach(([date, hours]) => {
+            Object.entries(hours).forEach(([h, val]) => {
+                if (parseInt(h) < 8 && val.focus >= 300) earlyBird = true;
+            });
+        });
+    }
+
+    return {
+        streak,
+        totalHours: totalFocusSeconds / 3600,
+        highScoreDays,
+        eliteScoreDays,
+        perfectDays,
+        earlyBird
+    };
+}
+
+function renderMilestones(stats, studyDomains, hourlyStats) {
+    const data = computeMilestoneData(stats, studyDomains, hourlyStats);
+    const grid = document.getElementById('badgesGrid');
+    grid.innerHTML = '';
+    MILESTONES.forEach(m => {
+        const unlocked = m.check(data);
+        const badge = document.createElement('div');
+        badge.className = `badge-card ${unlocked ? 'unlocked' : 'locked'}`;
+        badge.innerHTML = `
+            <div class="badge-icon" style="color:${unlocked ? m.color : 'var(--muted)'}; border-color:${unlocked ? m.color : 'var(--border)'}">
+                ${m.icon}
+            </div>
+            <div class="badge-info">
+                <span class="badge-title">${m.title}</span>
+                <span class="badge-desc">${m.desc}</span>
+            </div>
+            ${unlocked ? '<span class="badge-unlocked-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>' : ''}
+        `;
+        grid.appendChild(badge);
+    });
 }
 
 function exportData(format) {
