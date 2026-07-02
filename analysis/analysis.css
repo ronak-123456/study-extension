@@ -973,9 +973,9 @@ body.dark .badge-icon {
   gap: 6px;
   padding: 8px 14px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--card-bg);
-  color: var(--text);
+  border: 1px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -984,9 +984,10 @@ body.dark .badge-icon {
 }
 
 .add-milestone-btn:hover {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+  background: var(--yellow);
+  color: #0f172a;
+  border-color: var(--yellow);
+  box-shadow: 0 4px 14px rgba(250, 204, 21, 0.3);
 }
 
 .custom-milestones-section {
