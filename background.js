@@ -270,6 +270,7 @@ chrome.idle.onStateChanged.addListener((state) => {
 });
 
 chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create('flushStats', { periodInMinutes: 30 });
   chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
     tabs.forEach((tab) => {
       chrome.scripting.executeScript({
@@ -307,21 +308,38 @@ function checkSummaryNotification() {
 
     if (yesterdayStats) {
       let focusSeconds = 0;
+      let distractionSeconds = 0;
+      const distractions = {};
+
       Object.entries(yesterdayStats).forEach(([domain, seconds]) => {
         const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
         if (isStudy) focusSeconds += seconds;
+        else {
+          distractionSeconds += seconds;
+          distractions[domain] = (distractions[domain] || 0) + seconds;
+        }
       });
 
-      if (focusSeconds > 0) {
+      const total = focusSeconds + distractionSeconds;
+      if (total > 0) {
+        const score = Math.round((focusSeconds / total) * 100);
         const h = Math.floor(focusSeconds / 3600);
         const m = Math.floor((focusSeconds % 3600) / 60);
         const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        const topDistractions = Object.entries(distractions)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([d]) => d.replace('www.', ''))
+          .join(', ');
+        const message = topDistractions
+          ? `Focus: ${timeStr} | Score: ${score}%. Top distractions: ${topDistractions}`
+          : `Focus: ${timeStr} | Score: ${score}%. No distractions!`;
 
         chrome.notifications.create({
           type: 'basic',
           iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-          title: 'Daily Summary',
-          message: `Yesterday you focused for ${timeStr}. Keep up the great work today!`,
+          title: '📊 Yesterday\'s Focus Summary',
+          message,
           priority: 2
         });
       }

@@ -10,7 +10,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.addEventListener('click', () => {
         document.getElementById('focusInfoPopup').classList.remove('active');
+        document.getElementById('exportMenu').classList.remove('active');
     });
+
+    document.getElementById('exportBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('exportMenu').classList.toggle('active');
+    });
+    document.getElementById('exportCSV').addEventListener('click', () => exportData('csv'));
+    document.getElementById('exportJSON').addEventListener('click', () => exportData('json'));
 
     // Auto-refresh only if we are looking at today
     setInterval(() => {
@@ -694,4 +702,35 @@ function formatHour(h) {
     if (h < 12) return h + ' AM';
     if (h === 12) return '12 PM';
     return (h - 12) + ' PM';
+}
+
+function exportData(format) {
+    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains'], (data) => {
+        const stats = data.dailyStats || {};
+        const studyDomains = data.studyDomains || [];
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify({ dailyStats: stats, studyDomains }, null, 2)], { type: 'application/json' });
+            downloadBlob(blob, 'focus-flow-data.json');
+        } else {
+            let csv = 'Date,Domain,Category,Seconds,Type\n';
+            Object.entries(stats).forEach(([date, domains]) => {
+                Object.entries(domains).forEach(([domain, seconds]) => {
+                    const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+                    csv += `${date},${domain},${categorize(domain)},${seconds},${isStudy ? 'focus' : 'distraction'}\n`;
+                });
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            downloadBlob(blob, 'focus-flow-data.csv');
+        }
+    });
+    document.getElementById('exportMenu').classList.remove('active');
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
 }
