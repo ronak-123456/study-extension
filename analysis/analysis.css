@@ -957,3 +957,288 @@ body.dark .badge-icon {
   right: 12px;
   color: #22c55e;
 }
+
+/* Custom Milestones */
+.milestones-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.add-milestone-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.add-milestone-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.custom-milestones-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.custom-milestones-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.badge-card .delete-milestone-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.badge-card:hover .delete-milestone-btn {
+  opacity: 1;
+}
+
+.badge-card .delete-milestone-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.badge-card .custom-badge-progress {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-content {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 28px 32px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.25s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.modal-close:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.form-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-picker-row input[type="color"] {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+
+.color-preview {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+
+.icon-select-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.icon-option {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.icon-option:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.icon-option.selected {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.btn-secondary {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--border);
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
