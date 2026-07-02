@@ -468,6 +468,146 @@
     ul {
       background: var(--card);
     }
+
+    /* Pomodoro Timer */
+    .pomo-section {
+      margin-top: 16px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+
+    .pomo-header {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .pomo-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .pomo-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-2);
+      border-radius: 10px;
+      padding: 3px;
+    }
+
+    .pomo-tab {
+      flex: 1;
+      padding: 6px 8px;
+      border: none;
+      background: none;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pomo-tab.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(106, 191, 155, 0.3);
+    }
+
+    body.dark .pomo-tab.active {
+      color: #0a1413;
+    }
+
+    .pomo-display {
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    #pomoTime {
+      font-size: 42px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pomo-label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    .pomo-controls {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .pomo-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pomo-start {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    body.dark .pomo-start {
+      color: #0a1413;
+    }
+
+    .pomo-start:hover {
+      background: var(--primary-strong);
+      transform: translateY(-1px);
+    }
+
+    .pomo-pause {
+      background: #fbbf24;
+      color: #1a1a1a;
+    }
+
+    .pomo-pause:hover {
+      background: #f59e0b;
+      transform: translateY(-1px);
+    }
+
+    .pomo-reset {
+      background: var(--primary-soft);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .pomo-reset:hover {
+      background: #cdeede;
+      transform: translateY(-1px);
+    }
+
+    .pomo-sessions {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .pomo-sessions span {
+      font-weight: 800;
+      color: var(--primary-strong);
+    }
   </style>
 </head>
 
@@ -527,6 +667,39 @@
     <ul id="domainList"></ul>
 
     <button id="viewStatsBtn" class="primary-btn" style="margin-top: 14px;">View Analysis Dashboard</button>
+
+    <!-- Pomodoro Timer -->
+    <div class="pomo-section">
+      <div class="pomo-header">
+        <h3 class="pomo-title">Pomodoro Timer</h3>
+        <div class="pomo-tabs">
+          <button class="pomo-tab active" data-mode="focus">Focus</button>
+          <button class="pomo-tab" data-mode="short">Short Break</button>
+          <button class="pomo-tab" data-mode="long">Long Break</button>
+        </div>
+      </div>
+      <div class="pomo-display">
+        <span id="pomoTime">25:00</span>
+        <span id="pomoLabel" class="pomo-label">Focus Session</span>
+      </div>
+      <div class="pomo-controls">
+        <button id="pomoStart" class="pomo-btn pomo-start">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Start
+        </button>
+        <button id="pomoPause" class="pomo-btn pomo-pause" style="display:none">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Pause
+        </button>
+        <button id="pomoReset" class="pomo-btn pomo-reset">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Reset
+        </button>
+      </div>
+      <div class="pomo-sessions">
+        <span id="pomoSessions">0</span> sessions completed
+      </div>
+    </div>
   </div>
 
   <script src="popup.js"></script>

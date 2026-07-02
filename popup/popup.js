@@ -180,3 +180,123 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2200);
   }
 });
+
+// Pomodoro Timer
+(function() {
+  const MODES = { focus: 25 * 60, short: 5 * 60, long: 15 * 60 };
+  const LABELS = { focus: 'Focus Session', short: 'Short Break', long: 'Long Break' };
+  let currentMode = 'focus';
+  let timeLeft = MODES.focus;
+  let running = false;
+  let intervalId = null;
+
+  const timeEl = document.getElementById('pomoTime');
+  const labelEl = document.getElementById('pomoLabel');
+  const startBtn = document.getElementById('pomoStart');
+  const pauseBtn = document.getElementById('pomoPause');
+  const resetBtn = document.getElementById('pomoReset');
+  const sessionsEl = document.getElementById('pomoSessions');
+  const tabs = document.querySelectorAll('.pomo-tab');
+
+  // Load state from storage
+  chrome.storage.local.get({ pomoSessions: 0, pomoState: null }, (data) => {
+    sessionsEl.textContent = data.pomoSessions;
+    if (data.pomoState && data.pomoState.running) {
+      const elapsed = Math.floor((Date.now() - data.pomoState.startedAt) / 1000);
+      timeLeft = Math.max(data.pomoState.timeLeft - elapsed, 0);
+      currentMode = data.pomoState.mode;
+      setActiveTab(currentMode);
+      if (timeLeft > 0) {
+        running = true;
+        startBtn.style.display = 'none';
+        pauseBtn.style.display = 'flex';
+        startInterval();
+      } else {
+        onComplete();
+      }
+    }
+    updateDisplay();
+  });
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      if (running) return;
+      currentMode = tab.dataset.mode;
+      timeLeft = MODES[currentMode];
+      setActiveTab(currentMode);
+      updateDisplay();
+    });
+  });
+
+  startBtn.addEventListener('click', () => {
+    running = true;
+    startBtn.style.display = 'none';
+    pauseBtn.style.display = 'flex';
+    saveState();
+    startInterval();
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    running = false;
+    pauseBtn.style.display = 'none';
+    startBtn.style.display = 'flex';
+    clearInterval(intervalId);
+    chrome.storage.local.set({ pomoState: null });
+  });
+
+  resetBtn.addEventListener('click', () => {
+    running = false;
+    clearInterval(intervalId);
+    timeLeft = MODES[currentMode];
+    pauseBtn.style.display = 'none';
+    startBtn.style.display = 'flex';
+    chrome.storage.local.set({ pomoState: null });
+    updateDisplay();
+  });
+
+  function startInterval() {
+    clearInterval(intervalId);
+    intervalId = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        clearInterval(intervalId);
+        onComplete();
+      }
+      updateDisplay();
+    }, 1000);
+  }
+
+  function onComplete() {
+    running = false;
+    pauseBtn.style.display = 'none';
+    startBtn.style.display = 'flex';
+    chrome.storage.local.set({ pomoState: null });
+    if (currentMode === 'focus') {
+      chrome.storage.local.get({ pomoSessions: 0 }, (data) => {
+        const count = data.pomoSessions + 1;
+        chrome.storage.local.set({ pomoSessions: count });
+        sessionsEl.textContent = count;
+      });
+      chrome.notifications.create({ type: 'basic', iconUrl: chrome.runtime.getURL('icons/icon128.png'), title: 'Pomodoro Complete!', message: 'Great work! Take a break.', priority: 2 });
+    } else {
+      chrome.notifications.create({ type: 'basic', iconUrl: chrome.runtime.getURL('icons/icon128.png'), title: 'Break Over!', message: 'Time to focus again.', priority: 2 });
+    }
+  }
+
+  function saveState() {
+    chrome.storage.local.set({ pomoState: { mode: currentMode, timeLeft, startedAt: Date.now(), running: true } });
+  }
+
+  function setActiveTab(mode) {
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+    labelEl.textContent = LABELS[mode];
+  }
+
+  function updateDisplay() {
+    const m = Math.floor(timeLeft / 60);
+    const s = timeLeft % 60;
+    timeEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    labelEl.textContent = LABELS[currentMode];
+  }
+})();
