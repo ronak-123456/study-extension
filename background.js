@@ -271,6 +271,7 @@ chrome.idle.onStateChanged.addListener((state) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('flushStats', { periodInMinutes: 30 });
+  scheduleDailySummaryAlarm();
   chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
     tabs.forEach((tab) => {
       chrome.scripting.executeScript({
@@ -290,8 +291,27 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
   });
+  scheduleDailySummaryAlarm();
   checkSummaryNotification();
 });
+
+// Schedule a daily alarm at 9 PM for end-of-day summary
+function scheduleDailySummaryAlarm() {
+  const now = new Date();
+  let target = new Date();
+  target.setHours(21, 0, 0, 0); // 9:00 PM
+
+  // If it's already past 9 PM today, schedule for tomorrow
+  if (now >= target) {
+    target.setDate(target.getDate() + 1);
+  }
+
+  const delayInMinutes = (target.getTime() - now.getTime()) / 60000;
+  chrome.alarms.create('dailySummary', {
+    delayInMinutes,
+    periodInMinutes: 24 * 60 // Repeat every 24 hours
+  });
+}
 
 function checkSummaryNotification() {
   const today = new Date().toISOString().split('T')[0];
@@ -348,6 +368,79 @@ function checkSummaryNotification() {
   });
 }
 
+// End-of-day summary — triggered at 9 PM with today's stats
+function sendEndOfDaySummary() {
+  const today = new Date().toISOString().split('T')[0];
+
+  chrome.storage.local.get(['lastEODSummaryDate', 'dailyStats', 'studyDomains'], (data) => {
+    if (data.lastEODSummaryDate === today) return;
+
+    const stats = data.dailyStats || {};
+    const todayStats = stats[today];
+    const studyDomains = data.studyDomains || [];
+
+    if (!todayStats) {
+      chrome.notifications.create('eod-summary-' + today, {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: '📊 Daily Focus Summary',
+        message: 'No browsing activity tracked today. Take a break! 🌙',
+        priority: 1
+      });
+      chrome.storage.local.set({ lastEODSummaryDate: today });
+      return;
+    }
+
+    let focusSeconds = 0;
+    let distractionSeconds = 0;
+    const distractions = {};
+
+    Object.entries(todayStats).forEach(([domain, seconds]) => {
+      const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+      if (isStudy) focusSeconds += seconds;
+      else {
+        distractionSeconds += seconds;
+        distractions[domain] = (distractions[domain] || 0) + seconds;
+      }
+    });
+
+    const total = focusSeconds + distractionSeconds;
+    if (total === 0) {
+      chrome.storage.local.set({ lastEODSummaryDate: today });
+      return;
+    }
+
+    const score = Math.round((focusSeconds / total) * 100);
+    const h = Math.floor(focusSeconds / 3600);
+    const m = Math.floor((focusSeconds % 3600) / 60);
+    const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+    const topDistractions = Object.entries(distractions)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([d]) => d.replace('www.', ''))
+      .join(', ');
+
+    let emoji = score >= 80 ? '🔥' : score >= 50 ? '👍' : '⚠️';
+    let message = `${emoji} Focus: ${timeStr} | Score: ${score}%`;
+    if (topDistractions) {
+      message += `\nTop distractions: ${topDistractions}`;
+    } else {
+      message += `\nZero distractions today! Amazing! 🎉`;
+    }
+
+    chrome.notifications.create('eod-summary-' + today, {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+      title: '📊 Daily Focus Summary',
+      message,
+      priority: 2
+    });
+
+    chrome.storage.local.set({ lastEODSummaryDate: today });
+  });
+}
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'flushStats') {
     if (activeTabId && activeStartTime && activeUrl) {
@@ -358,5 +451,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       }
     }
     checkSummaryNotification();
+  }
+  if (alarm.name === 'dailySummary') {
+    sendEndOfDaySummary();
   }
 });

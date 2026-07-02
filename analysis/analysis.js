@@ -279,6 +279,9 @@ function updateDashboard() {
         // Categories
         renderCategories(stats, datesToProcess);
 
+        // Milestones
+        renderMilestones(stats, studyDomains, hourlyStats);
+
         // Insights
 
     });
@@ -704,6 +707,108 @@ function formatHour(h) {
     return (h - 12) + ' PM';
 }
 
+
+const MILESTONES = [
+    // Streak badges
+    { id: 'streak3', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>', title: 'Warming Up', desc: '3 day streak', check: (d) => d.streak >= 3, color: '#fb923c' },
+    { id: 'streak7', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>', title: 'On Fire', desc: '7 day streak', check: (d) => d.streak >= 7, color: '#ef4444' },
+    { id: 'streak30', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>', title: 'Unstoppable', desc: '30 day streak', check: (d) => d.streak >= 30, color: '#a855f7' },
+    // Total hours
+    { id: 'hours1', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', title: 'First Hour', desc: '1 hour total focus', check: (d) => d.totalHours >= 1, color: '#60a5fa' },
+    { id: 'hours10', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', title: 'Dedicated', desc: '10 hours total focus', check: (d) => d.totalHours >= 10, color: '#34d399' },
+    { id: 'hours50', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', title: 'Scholar', desc: '50 hours total focus', check: (d) => d.totalHours >= 50, color: '#f59e0b' },
+    { id: 'hours100', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', title: 'Centurion', desc: '100 hours total focus', check: (d) => d.totalHours >= 100, color: '#ec4899' },
+    // Score thresholds
+    { id: 'score70', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>', title: 'Focused', desc: '70% score for 7 days', check: (d) => d.highScoreDays >= 7, color: '#14b8a6' },
+    { id: 'score90', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>', title: 'Laser Focus', desc: '90% score for 3 days', check: (d) => d.eliteScoreDays >= 3, color: '#fbbf24' },
+    // Special
+    { id: 'noDistract', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', title: 'Zero Distractions', desc: 'A full day with 100% focus', check: (d) => d.perfectDays >= 1, color: '#22c55e' },
+    { id: 'earlyBird', icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>', title: 'Early Bird', desc: 'Focused before 8 AM', check: (d) => d.earlyBird, color: '#fbbf24' },
+];
+
+function computeMilestoneData(stats, studyDomains, hourlyStats) {
+    let totalFocusSeconds = 0;
+    let streak = 0;
+    let highScoreDays = 0;
+    let eliteScoreDays = 0;
+    let perfectDays = 0;
+    let earlyBird = false;
+
+    const today = new Date();
+    const allDates = Object.keys(stats).sort();
+
+    // Total focus hours & score days
+    allDates.forEach(date => {
+        const dayStats = stats[date] || {};
+        let dayFocus = 0;
+        let dayDistraction = 0;
+        Object.entries(dayStats).forEach(([domain, seconds]) => {
+            if (studyDomains.some(d => domain === d || domain.endsWith('.' + d))) dayFocus += seconds;
+            else dayDistraction += seconds;
+        });
+        totalFocusSeconds += dayFocus;
+        const total = dayFocus + dayDistraction;
+        const score = total > 0 ? (dayFocus / total) * 100 : 0;
+        if (score >= 70 && total > 600) highScoreDays++;
+        if (score >= 90 && total > 600) eliteScoreDays++;
+        if (score === 100 && dayFocus >= 600) perfectDays++;
+    });
+
+    // Streak
+    for (let i = 0; i < 365; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayStats = stats[dateStr] || {};
+        let focusSec = 0;
+        Object.entries(dayStats).forEach(([domain, seconds]) => {
+            if (studyDomains.some(sd => domain === sd || domain.endsWith('.' + sd))) focusSec += seconds;
+        });
+        if (focusSec >= 600) streak++;
+        else break;
+    }
+
+    // Early bird check
+    if (hourlyStats) {
+        Object.entries(hourlyStats).forEach(([date, hours]) => {
+            Object.entries(hours).forEach(([h, val]) => {
+                if (parseInt(h) < 8 && val.focus >= 300) earlyBird = true;
+            });
+        });
+    }
+
+    return {
+        streak,
+        totalHours: totalFocusSeconds / 3600,
+        highScoreDays,
+        eliteScoreDays,
+        perfectDays,
+        earlyBird
+    };
+}
+
+function renderMilestones(stats, studyDomains, hourlyStats) {
+    const data = computeMilestoneData(stats, studyDomains, hourlyStats);
+    const grid = document.getElementById('badgesGrid');
+    grid.innerHTML = '';
+    MILESTONES.forEach(m => {
+        const unlocked = m.check(data);
+        const badge = document.createElement('div');
+        badge.className = `badge-card ${unlocked ? 'unlocked' : 'locked'}`;
+        badge.innerHTML = `
+            <div class="badge-icon" style="color:${unlocked ? m.color : 'var(--muted)'}; border-color:${unlocked ? m.color : 'var(--border)'}">
+                ${m.icon}
+            </div>
+            <div class="badge-info">
+                <span class="badge-title">${m.title}</span>
+                <span class="badge-desc">${m.desc}</span>
+            </div>
+            ${unlocked ? '<span class="badge-unlocked-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>' : ''}
+        `;
+        grid.appendChild(badge);
+    });
+}
+
 function exportData(format) {
     chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains'], (data) => {
         const stats = data.dailyStats || {};
@@ -734,3 +839,292 @@ function downloadBlob(blob, filename) {
     a.click();
     URL.revokeObjectURL(url);
 }
+
+// ============================================
+// Custom Milestones Feature
+// ============================================
+
+const CUSTOM_MILESTONE_ICONS = {
+    star: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
+    target: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+    trophy: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 22V18a2 2 0 0 1-2-2V4h8v12a2 2 0 0 1-2 2v4"/></svg>',
+    zap: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    award: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>',
+    rocket: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>'
+};
+
+
+function initCustomMilestones() {
+    const addBtn = document.getElementById('addMilestoneBtn');
+    const modal = document.getElementById('milestoneModal');
+    const closeBtn = document.getElementById('closeMilestoneModal');
+    const cancelBtn = document.getElementById('cancelMilestone');
+    const form = document.getElementById('milestoneForm');
+    const typeSelect = document.getElementById('milestoneType');
+    const hintEl = document.getElementById('milestoneHint');
+    const colorGrid = document.getElementById('colorSwatchGrid');
+    const iconGrid = document.getElementById('iconSelectGrid');
+    const targetTimeGroup = document.getElementById('targetTimeGroup');
+    const targetStreakGroup = document.getElementById('targetStreakGroup');
+
+    // Open modal
+    addBtn.addEventListener('click', () => {
+        modal.classList.add('active');
+    });
+
+    // Close modal
+    function closeModal() {
+        modal.classList.remove('active');
+        form.reset();
+        document.getElementById('milestoneHours').value = '0';
+        document.getElementById('milestoneMinutes').value = '0';
+        document.getElementById('milestoneSeconds').value = '0';
+        colorGrid.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+        colorGrid.querySelector('[data-color="#6366f1"]').classList.add('selected');
+        iconGrid.querySelectorAll('.icon-option').forEach(btn => btn.classList.remove('selected'));
+        iconGrid.querySelector('[data-icon="star"]').classList.add('selected');
+        targetTimeGroup.style.display = '';
+        targetStreakGroup.style.display = 'none';
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    // Type switch: show time inputs or streak input
+    typeSelect.addEventListener('change', () => {
+        if (typeSelect.value === 'streak') {
+            targetTimeGroup.style.display = 'none';
+            targetStreakGroup.style.display = '';
+        } else {
+            targetTimeGroup.style.display = '';
+            targetStreakGroup.style.display = 'none';
+            if (typeSelect.value === 'totalHours') {
+                hintEl.textContent = 'Set the target total focus duration';
+            } else {
+                hintEl.textContent = 'Set the target daily focus duration';
+            }
+        }
+    });
+
+    // Color swatch selection
+    colorGrid.addEventListener('click', (e) => {
+        const swatch = e.target.closest('.color-swatch');
+        if (!swatch) return;
+        colorGrid.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+        swatch.classList.add('selected');
+    });
+
+    // Icon selection
+    iconGrid.addEventListener('click', (e) => {
+        const btn = e.target.closest('.icon-option');
+        if (!btn) return;
+        iconGrid.querySelectorAll('.icon-option').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    });
+
+    // Form submit
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const title = document.getElementById('milestoneTitle').value.trim();
+        const desc = document.getElementById('milestoneDesc').value.trim();
+        const type = typeSelect.value;
+        const selectedColor = colorGrid.querySelector('.color-swatch.selected');
+        const color = selectedColor ? selectedColor.dataset.color : '#6366f1';
+        const selectedIcon = iconGrid.querySelector('.icon-option.selected');
+        const icon = selectedIcon ? selectedIcon.dataset.icon : 'star';
+
+        if (!title || !desc) return;
+
+        let target;
+        if (type === 'streak') {
+            target = parseInt(document.getElementById('milestoneStreakDays').value) || 0;
+            if (target <= 0) return;
+        } else {
+            const hours = parseInt(document.getElementById('milestoneHours').value) || 0;
+            const minutes = parseInt(document.getElementById('milestoneMinutes').value) || 0;
+            const seconds = parseInt(document.getElementById('milestoneSeconds').value) || 0;
+            target = hours + (minutes / 60) + (seconds / 3600); // Store as fractional hours
+            if (target <= 0) return;
+        }
+
+        const milestone = {
+            id: 'custom_' + Date.now(),
+            title,
+            desc,
+            type,
+            target,
+            color,
+            icon,
+            createdAt: new Date().toISOString()
+        };
+
+        saveCustomMilestone(milestone, () => {
+            closeModal();
+            refreshCustomMilestones();
+        });
+    });
+
+    // Initial render
+    refreshCustomMilestones();
+}
+
+function saveCustomMilestone(milestone, callback) {
+    chrome.storage.local.get(['customMilestones'], (data) => {
+        const milestones = data.customMilestones || [];
+        milestones.push(milestone);
+        chrome.storage.local.set({ customMilestones: milestones }, callback);
+    });
+}
+
+function deleteCustomMilestone(id) {
+    chrome.storage.local.get(['customMilestones'], (data) => {
+        const milestones = (data.customMilestones || []).filter(m => m.id !== id);
+        chrome.storage.local.set({ customMilestones: milestones }, () => {
+            refreshCustomMilestones();
+        });
+    });
+}
+
+function refreshCustomMilestones() {
+    chrome.storage.local.get(['customMilestones', 'dailyStats', 'studyDomains', 'hourlyStats'], (data) => {
+        const milestones = data.customMilestones || [];
+        const stats = data.dailyStats || {};
+        const studyDomains = data.studyDomains || [];
+        const section = document.getElementById('customMilestonesSection');
+        const grid = document.getElementById('customBadgesGrid');
+
+        if (milestones.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        grid.innerHTML = '';
+
+        // Compute progress data
+        const progressData = computeCustomMilestoneProgress(stats, studyDomains);
+
+        milestones.forEach(m => {
+            const progress = getCustomMilestoneProgress(m, progressData);
+            const unlocked = progress.current >= progress.target;
+
+            let progressText;
+            if (unlocked) {
+                progressText = '✓ Achieved!';
+            } else if (m.type === 'streak') {
+                progressText = `${Math.floor(progress.current)} / ${Math.floor(progress.target)} days`;
+            } else {
+                progressText = `${formatDuration(progress.current)} / ${formatDuration(progress.target)}`;
+            }
+
+            const badge = document.createElement('div');
+            badge.className = `badge-card ${unlocked ? 'unlocked' : 'locked'}`;
+            badge.innerHTML = `
+                <div class="badge-icon" style="color:${unlocked ? m.color : 'var(--muted)'}; border-color:${unlocked ? m.color : 'var(--border)'}">
+                    ${CUSTOM_MILESTONE_ICONS[m.icon] || CUSTOM_MILESTONE_ICONS.star}
+                </div>
+                <div class="badge-info">
+                    <span class="badge-title">${escapeHtml(m.title)}</span>
+                    <span class="badge-desc">${escapeHtml(m.desc)}</span>
+                    <span class="custom-badge-progress">${progressText}</span>
+                </div>
+                ${unlocked ? '<span class="badge-unlocked-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>' : ''}
+                <button class="delete-milestone-btn" data-id="${m.id}" title="Delete milestone">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            `;
+            grid.appendChild(badge);
+        });
+
+        // Delete buttons
+        grid.querySelectorAll('.delete-milestone-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                if (confirm('Delete this custom milestone?')) {
+                    deleteCustomMilestone(id);
+                }
+            });
+        });
+    });
+}
+
+function computeCustomMilestoneProgress(stats, studyDomains) {
+    let totalFocusSeconds = 0;
+    let streak = 0;
+    let maxDailyHours = 0;
+
+    const today = new Date();
+    const allDates = Object.keys(stats).sort();
+
+    // Total focus hours & max daily
+    allDates.forEach(date => {
+        const dayStats = stats[date] || {};
+        let dayFocus = 0;
+        Object.entries(dayStats).forEach(([domain, seconds]) => {
+            if (studyDomains.some(d => domain === d || domain.endsWith('.' + d))) {
+                dayFocus += seconds;
+            }
+        });
+        totalFocusSeconds += dayFocus;
+        const dayHours = dayFocus / 3600;
+        if (dayHours > maxDailyHours) maxDailyHours = dayHours;
+    });
+
+    // Streak
+    for (let i = 0; i < 365; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayStats = stats[dateStr] || {};
+        let focusSec = 0;
+        Object.entries(dayStats).forEach(([domain, seconds]) => {
+            if (studyDomains.some(sd => domain === sd || domain.endsWith('.' + sd))) focusSec += seconds;
+        });
+        if (focusSec >= 600) streak++;
+        else break;
+    }
+
+    return {
+        totalHours: totalFocusSeconds / 3600,
+        streak,
+        maxDailyHours
+    };
+}
+
+function getCustomMilestoneProgress(milestone, progressData) {
+    switch (milestone.type) {
+        case 'totalHours':
+            return { current: progressData.totalHours, target: milestone.target };
+        case 'streak':
+            return { current: progressData.streak, target: milestone.target };
+        case 'dailyHours':
+            return { current: progressData.maxDailyHours, target: milestone.target };
+        default:
+            return { current: 0, target: milestone.target };
+    }
+}
+
+function formatDuration(hours) {
+    const totalSeconds = Math.round(hours * 3600);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}m`);
+    if (s > 0 || parts.length === 0) parts.push(`${s}s`);
+    return parts.join(' ');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Initialize custom milestones when DOM is ready
+document.addEventListener('DOMContentLoaded', initCustomMilestones);
