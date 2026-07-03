@@ -66,8 +66,10 @@ function updateBadge() {
 
     const minutes = Math.floor(durationSec / 60);
 
-    // --- Allowance System Check ---
-    checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec);
+    // --- Allowance System Check (only for non-study sites) ---
+    if (!isStudy) {
+      checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec);
+    }
 
     // Graduated distraction nudges every 10 minutes
     if (!isStudy && durationSec > 0 && minutes >= 10 && durationSec % 600 === 0) {
@@ -104,7 +106,9 @@ function stopTracking() {
     clearInterval(badgeTimerInterval);
     badgeTimerInterval = null;
   }
+  chrome.alarms.clear('keepAlive');
   chrome.action.setBadgeText({ text: '' });
+  chrome.storage.session.remove('trackingState');
   activeTabId = null;
   activeStartTime = null;
   activeDomain = null;
@@ -123,13 +127,45 @@ function startTracking(tabId, url, title) {
   // If the URL is the same, just keep tracking
   if (url === activeUrl) return;
 
-  stopTracking();
+  // If no active state (service worker restarted), try to restore
+  if (!activeUrl && !activeStartTime) {
+    chrome.storage.session.get('trackingState', (data) => {
+      if (data.trackingState && data.trackingState.url === url) {
+        // Same URL — restore the original start time (don't reset)
+        activeTabId = tabId;
+        activeStartTime = data.trackingState.startTime;
+        activeDomain = data.trackingState.domain;
+        activeUrl = data.trackingState.url;
+        activeTitle = data.trackingState.title;
+        if (!badgeTimerInterval) {
+          badgeTimerInterval = setInterval(updateBadge, 1000);
+        }
+        updateBadge();
+      } else {
+        // Different URL — start fresh
+        beginFreshTracking(tabId, url, title, domain);
+      }
+    });
+    return;
+  }
 
+  stopTracking();
+  beginFreshTracking(tabId, url, title, domain);
+}
+
+function beginFreshTracking(tabId, url, title, domain) {
   activeTabId = tabId;
   activeStartTime = Date.now();
   activeDomain = domain;
   activeUrl = url;
   activeTitle = title || 'Untitled Tab';
+
+  chrome.storage.session.set({
+    trackingState: { tabId, startTime: activeStartTime, domain, url, title: activeTitle }
+  });
+
+  // Keep service worker alive while tracking
+  chrome.alarms.create('keepAlive', { periodInMinutes: 0.4 });
 
   if (!badgeTimerInterval) {
     badgeTimerInterval = setInterval(updateBadge, 1000);
@@ -183,37 +219,45 @@ function triggerFocusNotification(tabId, currentDomain) {
   lastNotifiedDomain = currentDomain;
   lastNotifiedAt = now;
 
-  const messages = [
-    `You wandered onto ${currentDomain}. Your study notes miss you.`,
-    `${currentDomain}? Really? Your textbook is crying.`,
-    `Plot twist: ${currentDomain} won't help you pass that exam.`
-  ];
-  const message = messages[Math.floor(Math.random() * messages.length)];
+  chrome.storage.local.get({ customNudges: [] }, (data) => {
+    const defaultMessages = [
+      `You wandered onto ${currentDomain}. Your study notes miss you.`,
+      `${currentDomain}? Really? Your textbook is crying.`,
+      `Plot twist: ${currentDomain} won't help you pass that exam.`
+    ];
 
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-    title: '🫣 Caught You!',
-    message,
-    priority: 1
-  });
+    const allMessages = data.customNudges.length > 0
+      ? [...data.customNudges, ...defaultMessages]
+      : defaultMessages;
+    const message = allMessages[Math.floor(Math.random() * allMessages.length)];
 
-  if (tabId) {
-    chrome.tabs.sendMessage(tabId, {
-      action: 'showFocusNudge',
-      domain: currentDomain
-    }).catch(() => {
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['content.js']
-      }).then(() => {
-        chrome.tabs.sendMessage(tabId, {
-          action: 'showFocusNudge',
-          domain: currentDomain
-        });
-      });
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+      title: '🫣 Caught You!',
+      message,
+      priority: 1
     });
-  }
+
+    if (tabId) {
+      chrome.tabs.sendMessage(tabId, {
+        action: 'showFocusNudge',
+        domain: currentDomain,
+        customMessage: message
+      }).catch(() => {
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        }).then(() => {
+          chrome.tabs.sendMessage(tabId, {
+            action: 'showFocusNudge',
+            domain: currentDomain,
+            customMessage: message
+          });
+        }).catch(() => {});
+      });
+    }
+  });
 }
 
 // Witty distraction messages — escalate with time
@@ -729,5 +773,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
   if (alarm.name === 'dailySummary') {
     sendEndOfDaySummary();
+  }
+  if (alarm.name === 'keepAlive') {
+    // Just keeps the service worker alive — restart badge timer if needed
+    if (activeStartTime && !badgeTimerInterval) {
+      badgeTimerInterval = setInterval(updateBadge, 1000);
+    }
+    updateBadge();
   }
 });
