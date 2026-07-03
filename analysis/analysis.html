@@ -43,6 +43,13 @@
                             <line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
                     </button>
+                    <button id="guideBtn" class="icon-btn guide-btn" title="How to Start">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </button>
                     <div class="export-menu" id="exportMenu">
                         <button id="exportCSV">Export as CSV</button>
                         <button id="exportJSON">Export as JSON</button>
@@ -301,11 +308,13 @@
                 </div>
             </section>
 
-            <!-- Getting Started Guide -->
-            <section class="guide-section">
-                <div class="card">
-                    <h3>Getting Started Guide</h3>
-                    <p class="muted">How to get the most out of Focus Flow</p>
+            <!-- Guide Modal -->
+            <div class="guide-overlay" id="guideOverlay">
+                <div class="guide-modal">
+                    <div class="guide-modal-header">
+                        <h3>How to Use Focus Flow</h3>
+                        <button class="guide-close-btn" id="guideCloseBtn">&times;</button>
+                    </div>
                     <div class="guide-steps">
                         <div class="guide-step">
                             <div class="guide-step-number">1</div>
@@ -331,7 +340,7 @@
                         <div class="guide-step">
                             <div class="guide-step-number">4</div>
                             <div class="guide-step-content">
-                                <h4>Get Nudges</h4>
+                                <h4>Get Smart Nudges</h4>
                                 <p>When you switch to a distraction site, you'll get a witty nudge. Every 10 min on distractions, messages escalate. Study milestones get encouragement.</p>
                             </div>
                         </div>
@@ -339,19 +348,26 @@
                             <div class="guide-step-number">5</div>
                             <div class="guide-step-content">
                                 <h4>Check Your Dashboard</h4>
-                                <p>Come here to see your focus score, heatmaps, streaks, milestones, and trends. Switch between daily and weekly views to track progress.</p>
+                                <p>This page shows your focus score, heatmaps, streaks, milestones, and trends. Switch between daily and weekly views to track progress.</p>
                             </div>
                         </div>
                         <div class="guide-step">
                             <div class="guide-step-number">6</div>
                             <div class="guide-step-content">
                                 <h4>Create Custom Milestones</h4>
-                                <p>Set personal goals like "Study 3 hours today" or "7-day streak". Track them in the Milestones section above.</p>
+                                <p>Set personal goals like "Study 3 hours today" or "7-day streak". Track them in the Milestones section with the Add Milestone button.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <div class="guide-step-number">7</div>
+                            <div class="guide-step-content">
+                                <h4>Add Your Own Motivation</h4>
+                                <p>Write custom motivational messages at the bottom of this page. They'll show up as nudges when you're on distraction sites.</p>
                             </div>
                         </div>
                     </div>
                 </div>
-            </section>
+            </div>
 
         </main>
     </div>

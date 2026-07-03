@@ -1282,3 +1282,26 @@ function initMotivationSection() {
 }
 
 document.addEventListener('DOMContentLoaded', initMotivationSection);
+
+// ============================================
+// Guide Modal
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+    const guideBtn = document.getElementById('guideBtn');
+    const guideOverlay = document.getElementById('guideOverlay');
+    const guideCloseBtn = document.getElementById('guideCloseBtn');
+
+    guideBtn.addEventListener('click', () => {
+        guideOverlay.classList.add('active');
+    });
+
+    guideCloseBtn.addEventListener('click', () => {
+        guideOverlay.classList.remove('active');
+    });
+
+    guideOverlay.addEventListener('click', (e) => {
+        if (e.target === guideOverlay) {
+            guideOverlay.classList.remove('active');
+        }
+    });
+});
