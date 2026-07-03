@@ -242,7 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function cleanAllowanceDomain(input) {
-    // Remove protocol, paths, whitespace
+    // Remove protocol, paths, whitespace, decode URI
+    try { input = decodeURIComponent(input); } catch(e) {}
     input = input.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0].trim();
     // If it has a dot, treat as valid domain
     if (input && input.includes('.')) return input;
