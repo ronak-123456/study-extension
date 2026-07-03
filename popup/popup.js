@@ -370,6 +370,72 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(loadAllowances, 30000);
 })();
 
+// =============================================
+// Custom Nudge Messages
+// =============================================
+(function () {
+  const nudgeInput = document.getElementById('nudgeInput');
+  const addNudgeBtn = document.getElementById('addNudgeBtn');
+  const nudgeList = document.getElementById('nudgeList');
+
+  loadNudges();
+
+  addNudgeBtn.addEventListener('click', addNudge);
+  nudgeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addNudge();
+  });
+
+  function addNudge() {
+    const text = nudgeInput.value.trim();
+    if (!text) return;
+
+    chrome.storage.local.get({ customNudges: [] }, (data) => {
+      const nudges = data.customNudges;
+      nudges.push(text);
+      chrome.storage.local.set({ customNudges: nudges }, () => {
+        nudgeInput.value = '';
+        loadNudges();
+      });
+    });
+  }
+
+  function removeNudge(index) {
+    chrome.storage.local.get({ customNudges: [] }, (data) => {
+      const nudges = data.customNudges;
+      nudges.splice(index, 1);
+      chrome.storage.local.set({ customNudges: nudges }, () => {
+        loadNudges();
+      });
+    });
+  }
+
+  function loadNudges() {
+    chrome.storage.local.get({ customNudges: [] }, (data) => {
+      const nudges = data.customNudges || [];
+      nudgeList.innerHTML = '';
+
+      if (nudges.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'nudge-empty';
+        li.textContent = 'No custom messages yet. Add your own!';
+        nudgeList.appendChild(li);
+        return;
+      }
+
+      nudges.forEach((text, index) => {
+        const li = document.createElement('li');
+        li.className = 'nudge-item';
+        li.innerHTML = `
+          <span class="nudge-item-text">"${text}"</span>
+          <button class="nudge-delete-btn" title="Remove">×</button>
+        `;
+        li.querySelector('.nudge-delete-btn').addEventListener('click', () => removeNudge(index));
+        nudgeList.appendChild(li);
+      });
+    });
+  }
+})();
+
 // Pomodoro Timer
 (function() {
   const MODES = { focus: 25 * 60, short: 5 * 60, long: 15 * 60 };

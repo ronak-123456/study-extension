@@ -864,6 +864,125 @@
       color: var(--muted);
       font-style: italic;
     }
+
+    /* Custom Nudge Messages */
+    .nudge-section {
+      margin-top: 16px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+
+    .nudge-header { margin-bottom: 10px; }
+
+    .nudge-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 2px;
+    }
+
+    .nudge-subtitle {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .nudge-add-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .nudge-add-row input {
+      flex: 1;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .nudge-add-row input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(106, 191, 155, 0.15);
+    }
+
+    .nudge-add-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    body.dark .nudge-add-btn { color: #0a1413; }
+
+    .nudge-add-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(106, 191, 155, 0.3);
+    }
+
+    .nudge-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-radius: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid var(--line);
+    }
+
+    .nudge-list:empty { border: none; }
+
+    .nudge-list::-webkit-scrollbar { width: 4px; }
+    .nudge-list::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
+
+    .nudge-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--line);
+      gap: 8px;
+    }
+
+    .nudge-item:last-child { border-bottom: none; }
+
+    .nudge-item-text {
+      font-size: 12px;
+      color: var(--text);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .nudge-delete-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .nudge-delete-btn:hover { background: var(--danger-soft); }
+
+    .nudge-empty {
+      padding: 14px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      font-style: italic;
+    }
   </style>
 </head>
 
@@ -949,6 +1068,19 @@
       </div>
       <button id="addCurrentAllowanceBtn" class="secondary-btn" style="margin-bottom: 10px; font-size: 12px; padding: 8px;">+ Limit Current Website</button>
       <ul id="allowanceList" class="allowance-list"></ul>
+    </div>
+
+    <!-- Custom Nudge Messages -->
+    <div class="nudge-section">
+      <div class="nudge-header">
+        <h3 class="nudge-title">💬 Custom Nudge Messages</h3>
+        <span class="nudge-subtitle">Your own motivational reminders</span>
+      </div>
+      <div class="nudge-add-row">
+        <input type="text" id="nudgeInput" placeholder="e.g., You got this! Stay on track 💪" autocomplete="off" maxlength="100">
+        <button id="addNudgeBtn" class="nudge-add-btn">Add</button>
+      </div>
+      <ul id="nudgeList" class="nudge-list"></ul>
     </div>
 
     <!-- Pomodoro Timer -->

@@ -219,37 +219,45 @@ function triggerFocusNotification(tabId, currentDomain) {
   lastNotifiedDomain = currentDomain;
   lastNotifiedAt = now;
 
-  const messages = [
-    `You wandered onto ${currentDomain}. Your study notes miss you.`,
-    `${currentDomain}? Really? Your textbook is crying.`,
-    `Plot twist: ${currentDomain} won't help you pass that exam.`
-  ];
-  const message = messages[Math.floor(Math.random() * messages.length)];
+  chrome.storage.local.get({ customNudges: [] }, (data) => {
+    const defaultMessages = [
+      `You wandered onto ${currentDomain}. Your study notes miss you.`,
+      `${currentDomain}? Really? Your textbook is crying.`,
+      `Plot twist: ${currentDomain} won't help you pass that exam.`
+    ];
 
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-    title: '🫣 Caught You!',
-    message,
-    priority: 1
-  });
+    const allMessages = data.customNudges.length > 0
+      ? [...data.customNudges, ...defaultMessages]
+      : defaultMessages;
+    const message = allMessages[Math.floor(Math.random() * allMessages.length)];
 
-  if (tabId) {
-    chrome.tabs.sendMessage(tabId, {
-      action: 'showFocusNudge',
-      domain: currentDomain
-    }).catch(() => {
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['content.js']
-      }).then(() => {
-        chrome.tabs.sendMessage(tabId, {
-          action: 'showFocusNudge',
-          domain: currentDomain
-        });
-      });
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+      title: '🫣 Caught You!',
+      message,
+      priority: 1
     });
-  }
+
+    if (tabId) {
+      chrome.tabs.sendMessage(tabId, {
+        action: 'showFocusNudge',
+        domain: currentDomain,
+        customMessage: message
+      }).catch(() => {
+        chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        }).then(() => {
+          chrome.tabs.sendMessage(tabId, {
+            action: 'showFocusNudge',
+            domain: currentDomain,
+            customMessage: message
+          });
+        }).catch(() => {});
+      });
+    }
+  });
 }
 
 // Witty distraction messages — escalate with time

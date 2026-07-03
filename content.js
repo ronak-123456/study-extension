@@ -111,7 +111,7 @@ const SHARED_STYLES = `
 // =============================================
 // Initial Focus Nudge (on first switch to distraction)
 // =============================================
-function createNudgeModal(domain) {
+function createNudgeModal(domain, customMessage) {
   removeExisting();
 
   const container = document.createElement('div');
@@ -156,7 +156,7 @@ function createNudgeModal(domain) {
       <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Focus Flow">
     </div>
     <h3 class="ff-title">Stay Focused!</h3>
-    <p class="ff-message">You wandered onto <strong>${domain}</strong>.<br>Time to get back to work!</p>
+    <p class="ff-message">${customMessage || `You wandered onto <strong>${domain}</strong>.<br>Time to get back to work!`}</p>
     <button class="ff-btn ff-btn-primary">Got it, focusing! ✨</button>
   `;
 
@@ -483,7 +483,7 @@ function createAllowanceCountdown(domain, remainingSeconds, limitSeconds, level)
 // =============================================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'showFocusNudge') {
-    createNudgeModal(request.domain);
+    createNudgeModal(request.domain, request.customMessage);
   }
   if (request.action === 'showDistractionBlock') {
     createDistractionBlock(request.domain, request.minutes, request.message, request.severity);
