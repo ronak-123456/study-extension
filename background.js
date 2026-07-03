@@ -106,7 +106,9 @@ function stopTracking() {
     clearInterval(badgeTimerInterval);
     badgeTimerInterval = null;
   }
+  chrome.alarms.clear('keepAlive');
   chrome.action.setBadgeText({ text: '' });
+  chrome.storage.session.remove('trackingState');
   activeTabId = null;
   activeStartTime = null;
   activeDomain = null;
@@ -125,13 +127,45 @@ function startTracking(tabId, url, title) {
   // If the URL is the same, just keep tracking
   if (url === activeUrl) return;
 
-  stopTracking();
+  // If no active state (service worker restarted), try to restore
+  if (!activeUrl && !activeStartTime) {
+    chrome.storage.session.get('trackingState', (data) => {
+      if (data.trackingState && data.trackingState.url === url) {
+        // Same URL — restore the original start time (don't reset)
+        activeTabId = tabId;
+        activeStartTime = data.trackingState.startTime;
+        activeDomain = data.trackingState.domain;
+        activeUrl = data.trackingState.url;
+        activeTitle = data.trackingState.title;
+        if (!badgeTimerInterval) {
+          badgeTimerInterval = setInterval(updateBadge, 1000);
+        }
+        updateBadge();
+      } else {
+        // Different URL — start fresh
+        beginFreshTracking(tabId, url, title, domain);
+      }
+    });
+    return;
+  }
 
+  stopTracking();
+  beginFreshTracking(tabId, url, title, domain);
+}
+
+function beginFreshTracking(tabId, url, title, domain) {
   activeTabId = tabId;
   activeStartTime = Date.now();
   activeDomain = domain;
   activeUrl = url;
   activeTitle = title || 'Untitled Tab';
+
+  chrome.storage.session.set({
+    trackingState: { tabId, startTime: activeStartTime, domain, url, title: activeTitle }
+  });
+
+  // Keep service worker alive while tracking
+  chrome.alarms.create('keepAlive', { periodInMinutes: 0.4 });
 
   if (!badgeTimerInterval) {
     badgeTimerInterval = setInterval(updateBadge, 1000);
@@ -731,5 +765,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
   if (alarm.name === 'dailySummary') {
     sendEndOfDaySummary();
+  }
+  if (alarm.name === 'keepAlive') {
+    // Just keeps the service worker alive — restart badge timer if needed
+    if (activeStartTime && !badgeTimerInterval) {
+      badgeTimerInterval = setInterval(updateBadge, 1000);
+    }
+    updateBadge();
   }
 });
