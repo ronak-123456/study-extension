@@ -546,19 +546,19 @@ function evaluateTab(tab) {
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.tabs.get(activeInfo.tabId, (tab) => {
+    if (chrome.runtime.lastError || !tab || !tab.url) return;
     startTracking(activeInfo.tabId, tab.url, tab.title);
     evaluateTab(tab);
   });
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (tab.active) {
-    if (changeInfo.url || changeInfo.title) {
-      startTracking(tabId, tab.url, tab.title);
-    }
-    if (changeInfo.status === 'complete') {
-      evaluateTab(tab);
-    }
+  if (!tab.active || !tab.url || isSkippableUrl(tab.url)) return;
+  if (changeInfo.url || changeInfo.title) {
+    startTracking(tabId, tab.url, tab.title);
+  }
+  if (changeInfo.status === 'complete') {
+    evaluateTab(tab);
   }
 });
 
