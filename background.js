@@ -66,8 +66,10 @@ function updateBadge() {
 
     const minutes = Math.floor(durationSec / 60);
 
-    // --- Allowance System Check ---
-    checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec);
+    // --- Allowance System Check (only for non-study sites) ---
+    if (!isStudy) {
+      checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec);
+    }
 
     // Graduated distraction nudges every 10 minutes
     if (!isStudy && durationSec > 0 && minutes >= 10 && durationSec % 600 === 0) {
