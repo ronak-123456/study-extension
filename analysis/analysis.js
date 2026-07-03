@@ -729,7 +729,10 @@ function renderHeatmap(hourlyStats, dates) {
         let maxTotal = 0;
         dates.forEach(date => {
             const day = hourlyStats[date] || {};
-            Object.values(day).forEach(v => { maxTotal = Math.max(maxTotal, v.focus + v.distraction); });
+            Object.values(day).forEach(v => {
+                const total = (v.focus || 0) + (v.distraction || 0);
+                maxTotal = Math.max(maxTotal, total);
+            });
         });
         maxTotal = maxTotal || 1;
         // Date rows (oldest first)
@@ -743,7 +746,7 @@ function renderHeatmap(hourlyStats, dates) {
             for (let h = 0; h < 24; h++) {
                 const cell = document.createElement('div');
                 cell.className = 'heatmap-cell';
-                const val = day[h] || { focus: 0, distraction: 0 };
+                const val = day[String(h)] || { focus: 0, distraction: 0 };
                 const total = val.focus + val.distraction;
                 const focusRatio = total > 0 ? val.focus / total : 0;
                 const intensity = total / maxTotal;
@@ -761,8 +764,11 @@ function renderHeatmap(hourlyStats, dates) {
         const hourData = Array(24).fill(null).map(() => ({ focus: 0, distraction: 0 }));
         const day = hourlyStats[dates[0]] || {};
         Object.entries(day).forEach(([h, val]) => {
-            hourData[parseInt(h)].focus += val.focus;
-            hourData[parseInt(h)].distraction += val.distraction;
+            const idx = parseInt(h);
+            if (idx >= 0 && idx < 24 && val) {
+                hourData[idx].focus += (val.focus || 0);
+                hourData[idx].distraction += (val.distraction || 0);
+            }
         });
         const maxTotal = Math.max(...hourData.map(h => h.focus + h.distraction), 1);
         for (let h = 0; h < 24; h++) {
@@ -1276,3 +1282,26 @@ function initMotivationSection() {
 }
 
 document.addEventListener('DOMContentLoaded', initMotivationSection);
+
+// ============================================
+// Guide Modal
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+    const guideBtn = document.getElementById('guideBtn');
+    const guideOverlay = document.getElementById('guideOverlay');
+    const guideCloseBtn = document.getElementById('guideCloseBtn');
+
+    guideBtn.addEventListener('click', () => {
+        guideOverlay.classList.add('active');
+    });
+
+    guideCloseBtn.addEventListener('click', () => {
+        guideOverlay.classList.remove('active');
+    });
+
+    guideOverlay.addEventListener('click', (e) => {
+        if (e.target === guideOverlay) {
+            guideOverlay.classList.remove('active');
+        }
+    });
+});

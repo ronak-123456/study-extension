@@ -46,7 +46,8 @@
     {
       "resources": [
         "logo.jpg",
-        "analysis/*"
+        "analysis/*",
+        "onboarding.html"
       ],
       "matches": [
         "<all_urls>"

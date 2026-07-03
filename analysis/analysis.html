@@ -43,6 +43,13 @@
                             <line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
                     </button>
+                    <button id="guideBtn" class="icon-btn guide-btn" title="How to Start">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </button>
                     <div class="export-menu" id="exportMenu">
                         <button id="exportCSV">Export as CSV</button>
                         <button id="exportJSON">Export as JSON</button>
@@ -300,6 +307,67 @@
                     <div class="motivation-list" id="motivationList"></div>
                 </div>
             </section>
+
+            <!-- Guide Modal -->
+            <div class="guide-overlay" id="guideOverlay">
+                <div class="guide-modal">
+                    <div class="guide-modal-header">
+                        <h3>How to Use Focus Flow</h3>
+                        <button class="guide-close-btn" id="guideCloseBtn">&times;</button>
+                    </div>
+                    <div class="guide-steps">
+                        <div class="guide-step">
+                            <div class="guide-step-number">1</div>
+                            <div class="guide-step-content">
+                                <h4>Add Study Domains</h4>
+                                <p>Open the extension popup and add websites you use for studying — like docs.google.com, khanacademy.org, or github.com. These are tracked as focus time.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <div class="guide-step-number">2</div>
+                            <div class="guide-step-content">
+                                <h4>Set Daily Allowances</h4>
+                                <p>Limit distraction sites in the popup. E.g., give yourself 15 min/day on YouTube. You'll get countdown warnings as time runs out.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <div class="guide-step-number">3</div>
+                            <div class="guide-step-content">
+                                <h4>Browse Normally</h4>
+                                <p>Focus Flow tracks time in the background. The badge shows how long you've been on the current site. Green = study, red = distraction.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <div class="guide-step-number">4</div>
+                            <div class="guide-step-content">
+                                <h4>Get Smart Nudges</h4>
+                                <p>When you switch to a distraction site, you'll get a witty nudge. Every 10 min on distractions, messages escalate. Study milestones get encouragement.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <div class="guide-step-number">5</div>
+                            <div class="guide-step-content">
+                                <h4>Check Your Dashboard</h4>
+                                <p>This page shows your focus score, heatmaps, streaks, milestones, and trends. Switch between daily and weekly views to track progress.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <div class="guide-step-number">6</div>
+                            <div class="guide-step-content">
+                                <h4>Create Custom Milestones</h4>
+                                <p>Set personal goals like "Study 3 hours today" or "7-day streak". Track them in the Milestones section with the Add Milestone button.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <div class="guide-step-number">7</div>
+                            <div class="guide-step-content">
+                                <h4>Add Your Own Motivation</h4>
+                                <p>Write custom motivational messages at the bottom of this page. They'll show up as nudges when you're on distraction sites.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </main>
     </div>

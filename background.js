@@ -588,7 +588,7 @@ chrome.idle.onStateChanged.addListener((state) => {
   }
 });
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.alarms.create('flushStats', { periodInMinutes: 30 });
   scheduleDailySummaryAlarm();
   chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
@@ -604,6 +604,15 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
   });
+
+  // Show onboarding on first install
+  if (details.reason === 'install') {
+    chrome.storage.local.get({ onboardingComplete: false }, (data) => {
+      if (!data.onboardingComplete) {
+        chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+      }
+    });
+  }
 });
 
 chrome.runtime.onStartup.addListener(() => {
