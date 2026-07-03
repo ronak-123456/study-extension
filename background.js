@@ -108,7 +108,9 @@ function stopTracking() {
   }
   chrome.alarms.clear('keepAlive');
   chrome.action.setBadgeText({ text: '' });
-  chrome.storage.session.remove('trackingState');
+  if (chrome.storage.session) {
+    chrome.storage.session.remove('trackingState');
+  }
   activeTabId = null;
   activeStartTime = null;
   activeDomain = null;
@@ -129,23 +131,29 @@ function startTracking(tabId, url, title) {
 
   // If no active state (service worker restarted), try to restore
   if (!activeUrl && !activeStartTime) {
-    chrome.storage.session.get('trackingState', (data) => {
-      if (data.trackingState && data.trackingState.url === url) {
-        // Same URL — restore the original start time (don't reset)
-        activeTabId = tabId;
-        activeStartTime = data.trackingState.startTime;
-        activeDomain = data.trackingState.domain;
-        activeUrl = data.trackingState.url;
-        activeTitle = data.trackingState.title;
-        if (!badgeTimerInterval) {
-          badgeTimerInterval = setInterval(updateBadge, 1000);
+    if (chrome.storage.session) {
+      chrome.storage.session.get('trackingState', (data) => {
+        if (chrome.runtime.lastError) {
+          beginFreshTracking(tabId, url, title, domain);
+          return;
         }
-        updateBadge();
-      } else {
-        // Different URL — start fresh
-        beginFreshTracking(tabId, url, title, domain);
-      }
-    });
+        if (data.trackingState && data.trackingState.url === url) {
+          activeTabId = tabId;
+          activeStartTime = data.trackingState.startTime;
+          activeDomain = data.trackingState.domain;
+          activeUrl = data.trackingState.url;
+          activeTitle = data.trackingState.title;
+          if (!badgeTimerInterval) {
+            badgeTimerInterval = setInterval(updateBadge, 1000);
+          }
+          updateBadge();
+        } else {
+          beginFreshTracking(tabId, url, title, domain);
+        }
+      });
+    } else {
+      beginFreshTracking(tabId, url, title, domain);
+    }
     return;
   }
 
@@ -160,9 +168,11 @@ function beginFreshTracking(tabId, url, title, domain) {
   activeUrl = url;
   activeTitle = title || 'Untitled Tab';
 
-  chrome.storage.session.set({
-    trackingState: { tabId, startTime: activeStartTime, domain, url, title: activeTitle }
-  });
+  if (chrome.storage.session) {
+    chrome.storage.session.set({
+      trackingState: { tabId, startTime: activeStartTime, domain, url, title: activeTitle }
+    });
+  }
 
   // Keep service worker alive while tracking
   chrome.alarms.create('keepAlive', { periodInMinutes: 0.4 });
@@ -340,7 +350,7 @@ function sendGraduatedDistraction(tabId, domain, minutes) {
 // Study encouragement messages
 const STUDY_MESSAGES = {
   30: [
-    "30 minutes of focus! You're in the zone 🧠✨",
+    "30 minutes of focus! You're in the zone!",
     "Half an hour of deep work — that's a full pomodoro! Keep going!",
     "30 min locked in. Your brain cells are doing a happy dance.",
   ],

@@ -157,7 +157,7 @@ function createNudgeModal(domain, customMessage) {
     </div>
     <h3 class="ff-title">Stay Focused!</h3>
     <p class="ff-message">${customMessage || `You wandered onto <strong>${domain}</strong>.<br>Time to get back to work!`}</p>
-    <button class="ff-btn ff-btn-primary">Got it, focusing! ✨</button>
+    <button class="ff-btn ff-btn-primary">Got it, focusing!</button>
   `;
 
   card.querySelector('.ff-btn-primary').onclick = () => dismissNotification(container);
