@@ -1417,3 +1417,64 @@ body.dark .color-swatch.selected {
   font-size: 13px;
   font-style: italic;
 }
+
+/* Getting Started Guide */
+.guide-section {
+  margin-top: 24px;
+}
+
+.guide-section .card {
+  padding: 28px 32px;
+}
+
+.guide-section h3 {
+  margin-bottom: 4px;
+}
+
+.guide-steps {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.guide-step {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.guide-step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+body.dark .guide-step-number {
+  color: #020617;
+}
+
+.guide-step-content {
+  flex: 1;
+}
+
+.guide-step-content h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.guide-step-content p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
