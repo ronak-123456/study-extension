@@ -64,9 +64,19 @@ function updateBadge() {
       color: isStudy ? '#6abf9b' : '#fca5a5'
     });
 
-    // Reminder every 5 minutes on distraction
-    if (!isStudy && durationSec > 0 && durationSec % 300 === 0) {
-      triggerFocusNotification(activeTabId, activeDomain);
+    const minutes = Math.floor(durationSec / 60);
+
+    // Graduated distraction nudges every 10 minutes
+    if (!isStudy && durationSec > 0 && minutes >= 10 && durationSec % 600 === 0) {
+      sendGraduatedDistraction(activeTabId, activeDomain, minutes);
+    }
+
+    // Study encouragement at milestones: 30m, 1h, 1.5h, 2h, 3h
+    if (isStudy && durationSec > 0) {
+      const studyMilestones = [30, 60, 90, 120, 180];
+      if (studyMilestones.includes(minutes) && durationSec % 60 === 0) {
+        sendStudyEncouragement(activeTabId, activeDomain, minutes);
+      }
     }
   });
 }
@@ -170,11 +180,18 @@ function triggerFocusNotification(tabId, currentDomain) {
   lastNotifiedDomain = currentDomain;
   lastNotifiedAt = now;
 
+  const messages = [
+    `You wandered onto ${currentDomain}. Your study notes miss you.`,
+    `${currentDomain}? Really? Your textbook is crying.`,
+    `Plot twist: ${currentDomain} won't help you pass that exam.`
+  ];
+  const message = messages[Math.floor(Math.random() * messages.length)];
+
   chrome.notifications.create({
     type: 'basic',
     iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-    title: 'Stay Focused',
-    message: `You switched to ${currentDomain}. Get back to your study flow.`,
+    title: '🫣 Caught You!',
+    message,
     priority: 1
   });
 
@@ -192,6 +209,146 @@ function triggerFocusNotification(tabId, currentDomain) {
           domain: currentDomain
         });
       });
+    });
+  }
+}
+
+// Witty distraction messages — escalate with time
+const DISTRACTION_MESSAGES = {
+  10: [
+    "10 minutes gone. That's a whole pomodoro warm-up wasted here 🍅",
+    "You've been here 10 min. Your future self is side-eyeing you.",
+    "10 minutes of pure procrastination. Impressive commitment, honestly.",
+  ],
+  20: [
+    "20 minutes?! At this point, list it as a hobby on your resume.",
+    "Still here after 20 min? This site should pay you rent.",
+    "20 minutes. That's almost enough time to learn something useful. Almost.",
+  ],
+  30: [
+    "30 minutes. Half an hour. Gone. Poof. Like your productivity. 💨",
+    "You've officially spent more time here than on actual work. Ouch.",
+    "30 min! If procrastination was a sport, you'd be going pro.",
+  ],
+  40: [
+    "40 minutes. At this rate, your to-do list is writing its resignation letter.",
+    "Still going? Your textbooks filed a missing person report.",
+    "40 min of distraction. That's a whole episode of a show. You could've at least been entertained.",
+  ],
+  50: [
+    "50 minutes. Genuinely asking — did you forget you had work? 🤔",
+    "Almost an hour! Your study goals called, they want a divorce.",
+    "50 min deep. At this point I'm not judging, I'm worried.",
+  ],
+  60: [
+    "ONE HOUR. 🚨 This is an intervention. Please close this tab.",
+    "60 minutes of distraction. That's it. I'm calling your mom.",
+    "An entire hour gone. You could've learned a new skill by now. Just sayin'.",
+  ]
+};
+
+function getDistractionMessage(minutes) {
+  // Get the appropriate tier (round down to nearest 10)
+  const tier = Math.min(Math.floor(minutes / 10) * 10, 60);
+  const msgs = DISTRACTION_MESSAGES[tier] || DISTRACTION_MESSAGES[60];
+  return msgs[Math.floor(Math.random() * msgs.length)];
+}
+
+function sendGraduatedDistraction(tabId, domain, minutes) {
+  const message = getDistractionMessage(minutes);
+  const severity = minutes >= 30 ? 'high' : minutes >= 20 ? 'medium' : 'low';
+
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+    title: minutes >= 30 ? '🚨 Time Check!' : '⏰ Still Here?',
+    message,
+    priority: minutes >= 30 ? 2 : 1
+  });
+
+  if (tabId) {
+    chrome.tabs.sendMessage(tabId, {
+      action: 'showDistractionBlock',
+      domain,
+      minutes,
+      message,
+      severity
+    }).catch(() => {
+      chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      }).then(() => {
+        chrome.tabs.sendMessage(tabId, {
+          action: 'showDistractionBlock',
+          domain,
+          minutes,
+          message,
+          severity
+        });
+      }).catch(() => {});
+    });
+  }
+}
+
+// Study encouragement messages
+const STUDY_MESSAGES = {
+  30: [
+    "30 minutes of focus! You're in the zone 🧠✨",
+    "Half an hour of deep work — that's a full pomodoro! Keep going!",
+    "30 min locked in. Your brain cells are doing a happy dance.",
+  ],
+  60: [
+    "ONE HOUR of focus! 🎉 You're absolutely crushing it!",
+    "60 minutes deep — you're built different. Seriously.",
+    "A full hour of studying! Future you is so grateful right now.",
+  ],
+  90: [
+    "90 minutes! That's elite-level focus. Take a 5-min stretch? 🧘",
+    "1.5 hours of pure productivity. You're on fire! 🔥",
+    "90 min focused — you've outworked 90% of people today.",
+  ],
+  120: [
+    "TWO HOURS! 🏆 You've entered scholar mode. Legend.",
+    "120 minutes of focus. That's dedication. That's power.",
+    "2 hours in! Maybe take a break? You've earned it, champ.",
+  ],
+  180: [
+    "THREE HOURS?! 🤯 You're not human. Take a break, superhero!",
+    "180 minutes. At this point you deserve a PhD just for sitting here.",
+    "3 hours focused! Please drink water. Please. 💧",
+  ]
+};
+
+function sendStudyEncouragement(tabId, domain, minutes) {
+  const msgs = STUDY_MESSAGES[minutes] || STUDY_MESSAGES[60];
+  const message = msgs[Math.floor(Math.random() * msgs.length)];
+
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+    title: '🌟 Great Work!',
+    message,
+    priority: 1
+  });
+
+  if (tabId) {
+    chrome.tabs.sendMessage(tabId, {
+      action: 'showStudyEncouragement',
+      domain,
+      minutes,
+      message
+    }).catch(() => {
+      chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      }).then(() => {
+        chrome.tabs.sendMessage(tabId, {
+          action: 'showStudyEncouragement',
+          domain,
+          minutes,
+          message
+        });
+      }).catch(() => {});
     });
   }
 }
