@@ -1308,3 +1308,112 @@ body.dark .color-swatch.selected {
 .btn-primary:active {
   transform: scale(0.97);
 }
+
+/* Your Own Motivation */
+.motivation-section {
+  margin-top: 24px;
+}
+
+.motivation-section .card {
+  padding: 28px 32px;
+}
+
+.motivation-header {
+  margin-bottom: 16px;
+}
+
+.motivation-header h3 {
+  margin: 0 0 4px;
+}
+
+.motivation-add-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.motivation-add-row input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.motivation-add-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.motivation-add-btn {
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.motivation-add-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.motivation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.motivation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  gap: 12px;
+}
+
+.motivation-item-text {
+  font-size: 14px;
+  color: var(--text);
+  flex: 1;
+  font-style: italic;
+}
+
+.motivation-item-delete {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.motivation-item-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.motivation-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+}

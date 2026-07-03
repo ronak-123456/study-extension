@@ -1209,3 +1209,70 @@ function escapeHtml(text) {
 
 // Initialize custom milestones when DOM is ready
 document.addEventListener('DOMContentLoaded', initCustomMilestones);
+
+// ============================================
+// Your Own Motivation
+// ============================================
+function initMotivationSection() {
+    const input = document.getElementById('motivationInput');
+    const addBtn = document.getElementById('addMotivationBtn');
+    const list = document.getElementById('motivationList');
+
+    loadMotivations();
+
+    addBtn.addEventListener('click', addMotivation);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addMotivation();
+    });
+
+    function addMotivation() {
+        const text = input.value.trim();
+        if (!text) return;
+
+        chrome.storage.local.get({ customNudges: [] }, (data) => {
+            const nudges = data.customNudges;
+            nudges.push(text);
+            chrome.storage.local.set({ customNudges: nudges }, () => {
+                input.value = '';
+                loadMotivations();
+            });
+        });
+    }
+
+    function removeMotivation(index) {
+        chrome.storage.local.get({ customNudges: [] }, (data) => {
+            const nudges = data.customNudges;
+            nudges.splice(index, 1);
+            chrome.storage.local.set({ customNudges: nudges }, () => {
+                loadMotivations();
+            });
+        });
+    }
+
+    function loadMotivations() {
+        chrome.storage.local.get({ customNudges: [] }, (data) => {
+            const nudges = data.customNudges || [];
+            list.innerHTML = '';
+
+            if (nudges.length === 0) {
+                list.innerHTML = '<div class="motivation-empty">No custom messages yet. Add your own motivational nudges!</div>';
+                return;
+            }
+
+            nudges.forEach((text, index) => {
+                const item = document.createElement('div');
+                item.className = 'motivation-item';
+                item.innerHTML = `
+                    <span class="motivation-item-text">"${escapeHtml(text)}"</span>
+                    <button class="motivation-item-delete" title="Remove">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                `;
+                item.querySelector('.motivation-item-delete').addEventListener('click', () => removeMotivation(index));
+                list.appendChild(item);
+            });
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initMotivationSection);
