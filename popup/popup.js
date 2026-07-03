@@ -198,19 +198,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') addAllowance();
   });
 
+  // "Limit Current Website" button
+  document.getElementById('addCurrentAllowanceBtn').addEventListener('click', () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0] && tabs[0].url) {
+        try {
+          const url = new URL(tabs[0].url);
+          if (url.protocol.startsWith('http')) {
+            allowanceDomainInput.value = url.hostname.replace('www.', '');
+          }
+        } catch (e) {}
+      }
+    });
+  });
+
   function addAllowance() {
     let domain = allowanceDomainInput.value.trim().toLowerCase();
-    if (!domain) return;
-
-    // Clean domain
-    try {
-      if (!domain.startsWith('http://') && !domain.startsWith('https://')) {
-        domain = 'https://' + domain;
-      }
-      domain = new URL(domain).hostname.toLowerCase();
-    } catch (e) {
+    if (!domain) {
+      // If input is empty, try adding current tab's domain
+      addCurrentSiteAllowance();
       return;
     }
+
+    domain = cleanAllowanceDomain(domain);
+    if (!domain) return;
 
     const hours = parseInt(allowanceHours.value) || 0;
     const minutes = parseInt(allowanceMinutes.value) || 0;
@@ -227,6 +238,49 @@ document.addEventListener('DOMContentLoaded', () => {
         allowanceMinutes.value = '15';
         loadAllowances();
       });
+    });
+  }
+
+  function cleanAllowanceDomain(input) {
+    // Remove protocol, paths, whitespace
+    input = input.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0].trim();
+    // If it has a dot, treat as valid domain
+    if (input && input.includes('.')) return input;
+    // Common shortcuts without TLD
+    const commonSites = {
+      'youtube': 'youtube.com',
+      'reddit': 'reddit.com',
+      'twitter': 'twitter.com',
+      'x': 'x.com',
+      'instagram': 'instagram.com',
+      'facebook': 'facebook.com',
+      'tiktok': 'tiktok.com',
+      'netflix': 'netflix.com',
+      'twitch': 'twitch.tv',
+      'discord': 'discord.com',
+      'telegram': 'web.telegram.org',
+      'whatsapp': 'web.whatsapp.com',
+      'pinterest': 'pinterest.com',
+      'snapchat': 'snapchat.com',
+      'linkedin': 'linkedin.com',
+      'amazon': 'amazon.com',
+    };
+    if (commonSites[input]) return commonSites[input];
+    // Fallback: add .com
+    if (input) return input + '.com';
+    return '';
+  }
+
+  function addCurrentSiteAllowance() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0] && tabs[0].url) {
+        try {
+          const url = new URL(tabs[0].url);
+          if (url.protocol.startsWith('http')) {
+            allowanceDomainInput.value = url.hostname.replace('www.', '');
+          }
+        } catch (e) {}
+      }
     });
   }
 
