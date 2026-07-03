@@ -382,6 +382,103 @@ function autoRemove(container, ms) {
 }
 
 // =============================================
+// Allowance Countdown Notification
+// =============================================
+function createAllowanceCountdown(domain, remainingSeconds, limitSeconds, level) {
+  removeExisting();
+
+  const container = document.createElement('div');
+  container.id = 'focus-flow-nudge-container';
+  container.className = 'ff-notification-container';
+
+  const isExceeded = level === 'exceeded';
+  const isCritical = level === 'critical';
+  const borderColor = isExceeded ? '#dc2626' : isCritical ? '#f59e0b' : '#3b82f6';
+  const bgColor = isExceeded ? 'rgba(254, 226, 226, 0.97)' : isCritical ? 'rgba(255, 251, 235, 0.97)' : 'rgba(239, 246, 255, 0.97)';
+  const textColor = isExceeded ? '#991b1b' : isCritical ? '#92400e' : '#1e40af';
+
+  const limitMin = Math.floor(limitSeconds / 60);
+  const limitStr = limitMin >= 60 ? `${Math.floor(limitMin/60)}h${limitMin%60 > 0 ? ` ${limitMin%60}m` : ''}` : `${limitMin}m`;
+
+  let countdownText;
+  if (isExceeded) {
+    countdownText = 'Time\'s up!';
+  } else if (remainingSeconds < 60) {
+    countdownText = `${remainingSeconds}s left`;
+  } else {
+    countdownText = `${Math.ceil(remainingSeconds / 60)}m left`;
+  }
+
+  const style = document.createElement('style');
+  style.textContent = SHARED_STYLES + `
+    #ff-allowance-card {
+      background: ${bgColor};
+      border: 2px solid ${borderColor};
+      box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+    }
+    #ff-allowance-card .ff-title { color: ${textColor}; }
+    #ff-allowance-card .ff-message { color: ${textColor}; opacity: 0.85; }
+    #ff-allowance-card .ff-countdown {
+      font-size: 28px;
+      font-weight: 900;
+      color: ${borderColor};
+      font-variant-numeric: tabular-nums;
+    }
+    #ff-allowance-card .ff-limit-label {
+      font-size: 11px;
+      color: ${textColor};
+      opacity: 0.7;
+      font-weight: 600;
+    }
+    #ff-allowance-card .ff-btn-leave {
+      background: ${borderColor};
+      color: white;
+      box-shadow: 0 4px 12px ${borderColor}44;
+    }
+    #ff-allowance-card .ff-btn-leave:hover { filter: brightness(1.1); }
+    #ff-allowance-card .ff-btn-continue {
+      background: transparent;
+      color: ${textColor};
+      border: 1.5px solid ${borderColor}44;
+    }
+    #ff-allowance-card .ff-btn-continue:hover { background: ${borderColor}0d; }
+  `;
+
+  const emoji = isExceeded ? '🚫' : isCritical ? '⚠️' : '⏱️';
+  const title = isExceeded ? 'Allowance Used Up!' : isCritical ? 'Almost Out of Time!' : 'Allowance Running Low';
+
+  const card = document.createElement('div');
+  card.id = 'ff-allowance-card';
+  card.className = 'ff-notification-card';
+  card.innerHTML = `
+    <span class="ff-countdown">${countdownText}</span>
+    <span class="ff-limit-label">${domain.replace('www.', '')} — ${limitStr}/day limit</span>
+    <h3 class="ff-title">${emoji} ${title}</h3>
+    <p class="ff-message">${isExceeded ? 'Your daily allowance is finished. Close this tab to stay on track!' : 'Wrap up what you\'re doing — time is almost up.'}</p>
+    <div class="ff-btn-row">
+      <button class="ff-btn ff-btn-leave">Leave Now 🎯</button>
+      ${!isExceeded ? '<button class="ff-btn ff-btn-continue">OK</button>' : ''}
+    </div>
+  `;
+
+  card.querySelector('.ff-btn-leave').onclick = () => {
+    dismissNotification(container);
+    if (window.history.length > 1) window.history.back();
+    else window.close();
+  };
+
+  const continueBtn = card.querySelector('.ff-btn-continue');
+  if (continueBtn) continueBtn.onclick = () => dismissNotification(container);
+
+  container.appendChild(style);
+  container.appendChild(card);
+  document.body.appendChild(container);
+
+  // Exceeded doesn't auto-dismiss
+  if (!isExceeded) autoRemove(container, 15000);
+}
+
+// =============================================
 // Message Listener
 // =============================================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -393,5 +490,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   if (request.action === 'showStudyEncouragement') {
     createStudyEncouragement(request.domain, request.minutes, request.message);
+  }
+  if (request.action === 'showAllowanceCountdown') {
+    createAllowanceCountdown(request.domain, request.remainingSeconds, request.limitSeconds, request.level);
   }
 });

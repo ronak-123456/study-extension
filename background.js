@@ -54,7 +54,7 @@ function updateBadge() {
   chrome.action.setBadgeText({ text: badgeText });
 
   // Update periodic reminder if on distraction
-  chrome.storage.local.get({ studyDomains: [] }, (data) => {
+  chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {} }, (data) => {
     const isStudy = data.studyDomains.some(
       (allowedDomain) =>
         activeDomain === allowedDomain || activeDomain.endsWith(`.${allowedDomain}`)
@@ -65,6 +65,9 @@ function updateBadge() {
     });
 
     const minutes = Math.floor(durationSec / 60);
+
+    // --- Allowance System Check ---
+    checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec);
 
     // Graduated distraction nudges every 10 minutes
     if (!isStudy && durationSec > 0 && minutes >= 10 && durationSec % 600 === 0) {
@@ -351,6 +354,121 @@ function sendStudyEncouragement(tabId, domain, minutes) {
       }).catch(() => {});
     });
   }
+}
+
+// =============================================
+// Allowance System — Countdown Enforcement
+// =============================================
+let lastAllowanceWarning = 0;
+const ALLOWANCE_WARNING_COOLDOWN = 60000; // 1 min between warnings
+
+function checkAllowance(allowances, dailyStats, domain, currentSessionSeconds) {
+  if (!domain || !allowances || Object.keys(allowances).length === 0) return;
+
+  // Find matching allowance for this domain
+  const matchedAllowanceDomain = Object.keys(allowances).find(d =>
+    domain === d || domain.endsWith('.' + d)
+  );
+
+  if (!matchedAllowanceDomain) return;
+
+  const { limitSeconds } = allowances[matchedAllowanceDomain];
+  const today = new Date().toISOString().split('T')[0];
+  const todayStats = dailyStats[today] || {};
+
+  // Calculate total used time today (saved + current session)
+  let usedSeconds = 0;
+  Object.entries(todayStats).forEach(([d, seconds]) => {
+    if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
+      usedSeconds += seconds;
+    }
+  });
+  usedSeconds += currentSessionSeconds;
+
+  const remainingSeconds = limitSeconds - usedSeconds;
+  const now = Date.now();
+
+  // Warning thresholds
+  if (remainingSeconds <= 0) {
+    // Time's up — send block message
+    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+      lastAllowanceWarning = now;
+      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, 0, limitSeconds, 'exceeded');
+    }
+  } else if (remainingSeconds <= 60 && remainingSeconds > 0) {
+    // Less than 1 minute left
+    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+      lastAllowanceWarning = now;
+      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'critical');
+    }
+  } else if (remainingSeconds <= 300 && currentSessionSeconds % 60 === 0) {
+    // Less than 5 minutes — countdown every minute
+    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+      lastAllowanceWarning = now;
+      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'warning');
+    }
+  }
+}
+
+function sendAllowanceNotification(tabId, domain, remainingSeconds, limitSeconds, level) {
+  const limitStr = formatTimeShort(limitSeconds);
+  let title, message;
+
+  if (level === 'exceeded') {
+    const overMessages = [
+      `Your ${limitStr} allowance for ${domain} is used up! Time to leave.`,
+      `That's it — ${limitStr} of ${domain} used today. Willpower time! 💪`,
+      `${domain} time: OVER. Your future self thanks you for closing this.`
+    ];
+    title = '🚫 Allowance Exceeded!';
+    message = overMessages[Math.floor(Math.random() * overMessages.length)];
+  } else if (level === 'critical') {
+    title = '⏰ Less Than 1 Minute Left!';
+    message = `${remainingSeconds}s remaining on ${domain}. Wrap up now!`;
+  } else {
+    const mins = Math.ceil(remainingSeconds / 60);
+    title = '⏱️ Allowance Running Low';
+    message = `${mins} minute${mins > 1 ? 's' : ''} left of your daily ${limitStr} on ${domain}.`;
+  }
+
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+    title,
+    message,
+    priority: level === 'exceeded' ? 2 : 1
+  });
+
+  if (tabId) {
+    chrome.tabs.sendMessage(tabId, {
+      action: 'showAllowanceCountdown',
+      domain,
+      remainingSeconds,
+      limitSeconds,
+      level
+    }).catch(() => {
+      chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      }).then(() => {
+        chrome.tabs.sendMessage(tabId, {
+          action: 'showAllowanceCountdown',
+          domain,
+          remainingSeconds,
+          limitSeconds,
+          level
+        });
+      }).catch(() => {});
+    });
+  }
+}
+
+function formatTimeShort(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
 }
 
 function isSkippableUrl(url) {

@@ -608,6 +608,219 @@
       font-weight: 800;
       color: var(--primary-strong);
     }
+
+    /* Allowance Section */
+    .allowance-section {
+      margin-top: 16px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+
+    .allowance-header {
+      margin-bottom: 12px;
+    }
+
+    .allowance-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 2px;
+    }
+
+    .allowance-subtitle {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .allowance-add-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .allowance-add-row input[type="text"] {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      font-size: 12px;
+      min-width: 0;
+    }
+
+    .allowance-add-row input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(106, 191, 155, 0.15);
+    }
+
+    .allowance-time-inputs {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .allowance-time-inputs input {
+      width: 36px;
+      padding: 8px 4px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .allowance-time-inputs input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .allowance-colon {
+      font-weight: 700;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .allowance-add-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    body.dark .allowance-add-btn {
+      color: #0a1413;
+    }
+
+    .allowance-add-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(106, 191, 155, 0.3);
+    }
+
+    .allowance-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .allowance-list:empty {
+      border: none;
+    }
+
+    .allowance-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      gap: 8px;
+    }
+
+    .allowance-item:last-child {
+      border-bottom: none;
+    }
+
+    .allowance-item-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .allowance-item-domain {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .allowance-item-time {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .allowance-item-remaining {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .allowance-remaining-ok {
+      background: #d8f2e5;
+      color: #2f7058;
+    }
+
+    .allowance-remaining-warn {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .allowance-remaining-over {
+      background: #ffe9e9;
+      color: #d95d5d;
+    }
+
+    body.dark .allowance-remaining-ok {
+      background: #1a3632;
+      color: #a5e9dd;
+    }
+
+    body.dark .allowance-remaining-warn {
+      background: #3d2e0a;
+      color: #fde047;
+    }
+
+    body.dark .allowance-remaining-over {
+      background: #3d1515;
+      color: #fca5a5;
+    }
+
+    .allowance-delete-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .allowance-delete-btn:hover {
+      background: var(--danger-soft);
+    }
+
+    .allowance-empty {
+      padding: 14px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      font-style: italic;
+    }
   </style>
 </head>
 
@@ -667,6 +880,24 @@
     <ul id="domainList"></ul>
 
     <button id="viewStatsBtn" class="primary-btn" style="margin-top: 14px;">View Analysis Dashboard</button>
+
+    <!-- Allowances Section -->
+    <div class="allowance-section">
+      <div class="allowance-header">
+        <h3 class="allowance-title">⏱️ Daily Allowances</h3>
+        <span class="allowance-subtitle">Set time limits for distraction sites</span>
+      </div>
+      <div class="allowance-add-row">
+        <input type="text" id="allowanceDomainInput" placeholder="e.g., youtube.com" autocomplete="off">
+        <div class="allowance-time-inputs">
+          <input type="number" id="allowanceHours" min="0" max="23" value="0" title="Hours">
+          <span class="allowance-colon">:</span>
+          <input type="number" id="allowanceMinutes" min="0" max="59" value="15" title="Minutes">
+        </div>
+        <button id="addAllowanceBtn" class="allowance-add-btn" title="Add allowance">+</button>
+      </div>
+      <ul id="allowanceList" class="allowance-list"></ul>
+    </div>
 
     <!-- Pomodoro Timer -->
     <div class="pomo-section">
