@@ -288,15 +288,96 @@ function updateDashboard() {
 }
 
 function updateTrends(isWeekly, focus, distraction, count) {
-    // Simulated trends for the premium look
     const focusTrend = document.getElementById('focusTrend');
     const distractTrend = document.getElementById('distractionTrend');
     const siteTrend = document.getElementById('siteTrend');
 
-    if (focus > 0) {
-        focusTrend.textContent = `+${Math.round(focus * 0.1 / 60)}m vs previous`;
-        focusTrend.className = 'trend up';
+    // Get previous period data for real comparison
+    chrome.storage.local.get(['dailyStats', 'studyDomains'], (data) => {
+        const stats = data.dailyStats || {};
+        const studyDomains = data.studyDomains || [];
+
+        let prevFocus = 0;
+        let prevDistraction = 0;
+        let prevSites = new Set();
+        let prevDates = [];
+
+        if (isWeekly) {
+            // Compare this week vs last week
+            for (let i = 7; i < 14; i++) {
+                const d = new Date(currentViewDate);
+                d.setDate(d.getDate() - i);
+                prevDates.push(d.toISOString().split('T')[0]);
+            }
+        } else {
+            // Compare today vs yesterday
+            const prev = new Date(currentViewDate);
+            prev.setDate(prev.getDate() - 1);
+            prevDates.push(prev.toISOString().split('T')[0]);
+        }
+
+        prevDates.forEach(date => {
+            const dayStats = stats[date] || {};
+            Object.entries(dayStats).forEach(([domain, seconds]) => {
+                const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+                if (isStudy) prevFocus += seconds;
+                else prevDistraction += seconds;
+                prevSites.add(domain);
+            });
+        });
+
+        const periodLabel = isWeekly ? 'vs last week' : 'vs yesterday';
+
+        // Focus trend
+        const focusDelta = focus - prevFocus;
+        renderTrend(focusTrend, focusDelta, periodLabel, true);
+
+        // Distraction trend (lower is better, so invert the arrow logic)
+        const distractDelta = distraction - prevDistraction;
+        renderTrend(distractTrend, distractDelta, periodLabel, false);
+
+        // Sites trend
+        const sitesDelta = count - prevSites.size;
+        renderSitesTrend(siteTrend, sitesDelta, periodLabel);
+    });
+}
+
+function renderTrend(el, deltaSeconds, periodLabel, higherIsGood) {
+    if (deltaSeconds === 0) {
+        el.textContent = `— No change ${periodLabel}`;
+        el.className = 'trend neutral';
+        return;
     }
+
+    const absDelta = Math.abs(deltaSeconds);
+    const timeStr = formatTimeDelta(absDelta);
+    const isPositive = deltaSeconds > 0;
+    const isGood = higherIsGood ? isPositive : !isPositive;
+    const arrow = isPositive ? '↑' : '↓';
+
+    el.textContent = `${arrow} ${timeStr} ${periodLabel}`;
+    el.className = `trend ${isGood ? 'up' : 'down'}`;
+}
+
+function renderSitesTrend(el, delta, periodLabel) {
+    if (delta === 0) {
+        el.textContent = `— No change ${periodLabel}`;
+        el.className = 'trend neutral';
+        return;
+    }
+
+    const arrow = delta > 0 ? '↑' : '↓';
+    el.textContent = `${arrow} ${Math.abs(delta)} sites ${periodLabel}`;
+    el.className = `trend neutral`;
+}
+
+function formatTimeDelta(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    if (m > 0) return `${m}m`;
+    return `${seconds}s`;
 }
 
 function updateDetailedTable(urlStats, dates) {
