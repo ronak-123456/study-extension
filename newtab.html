@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Tab - Focus Flow</title>
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+  <div class="newtab-container">
+    <div class="newtab-header">
+      <img src="logo.jpg" class="newtab-logo" alt="Focus Flow">
+      <span class="newtab-greeting" id="greeting"></span>
+    </div>
+
+    <div class="newtab-score-card">
+      <div class="newtab-score-circle" id="scoreCircle">
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" class="score-bg"/>
+          <circle cx="60" cy="60" r="52" class="score-fill" id="scoreFill"/>
+        </svg>
+        <span class="score-value" id="scoreValue">0</span>
+        <span class="score-label">Focus Score</span>
+      </div>
+    </div>
+
+    <div class="newtab-stats">
+      <div class="newtab-stat">
+        <span class="newtab-stat-value" id="focusTime">0m</span>
+        <span class="newtab-stat-label">Deep Work</span>
+      </div>
+      <div class="newtab-stat-divider"></div>
+      <div class="newtab-stat">
+        <span class="newtab-stat-value" id="distractTime">0m</span>
+        <span class="newtab-stat-label">Distracted</span>
+      </div>
+      <div class="newtab-stat-divider"></div>
+      <div class="newtab-stat">
+        <span class="newtab-stat-value" id="streakCount">0</span>
+        <span class="newtab-stat-label">Day Streak</span>
+      </div>
+      <div class="newtab-stat-divider"></div>
+      <div class="newtab-stat">
+        <span class="newtab-stat-value" id="sitesCount">0</span>
+        <span class="newtab-stat-label">Sites Visited</span>
+      </div>
+    </div>
+
+    <div class="newtab-top-sites" id="topSites"></div>
+
+    <div class="newtab-motivation" id="motivationQuote"></div>
+
+    <a href="#" class="newtab-dashboard-link" id="dashboardLink">Open Full Dashboard</a>
+  </div>
+
+  <script src="newtab.js"></script>
+</body>
+</html>
