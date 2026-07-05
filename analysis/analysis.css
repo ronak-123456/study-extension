@@ -776,8 +776,12 @@ td {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   transition: transform 0.15s;
+}
+
+body.dark .heatmap-cell {
+  border-color: var(--border);
 }
 
 .heatmap-cell:hover {
@@ -839,7 +843,11 @@ td {
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  background-color: hsl(160, 70%, 50%);
+  background-color: hsl(168, 75%, 38%);
+}
+
+body.dark .legend-cell {
+  background-color: hsl(168, 75%, 45%);
 }
 
 /* Export Menu */
@@ -1015,7 +1023,7 @@ body.dark .badge-icon {
 .badge-card .delete-milestone-btn {
   position: absolute;
   top: 8px;
-  right: 8px;
+  left: 8px;
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -1028,6 +1036,10 @@ body.dark .badge-icon {
   justify-content: center;
   opacity: 0;
   transition: opacity 0.2s, background 0.2s;
+}
+
+.badge-card.unlocked .delete-milestone-btn {
+  top: 32px;
 }
 
 .badge-card:hover .delete-milestone-btn {
