@@ -41,9 +41,10 @@ function calculateStreak(stats, studyDomains) {
 }
 
 // Load and display stats
-chrome.storage.local.get(['dailyStats', 'studyDomains', 'customNudges'], (data) => {
+chrome.storage.local.get(['dailyStats', 'studyDomains', 'customNudges', 'allowances'], (data) => {
   const stats = data.dailyStats || {};
   const studyDomains = data.studyDomains || [];
+  const allowances = data.allowances || {};
   const todayStats = stats[today] || {};
 
   let focusSeconds = 0;
@@ -53,8 +54,21 @@ chrome.storage.local.get(['dailyStats', 'studyDomains', 'customNudges'], (data) 
 
   Object.entries(todayStats).forEach(([domain, seconds]) => {
     const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
-    if (isStudy) focusSeconds += seconds;
-    else distractionSeconds += seconds;
+    if (isStudy) {
+      focusSeconds += seconds;
+    } else {
+      const matchedAllowance = Object.keys(allowances).find(d =>
+        domain === d || domain.endsWith('.' + d)
+      );
+      if (matchedAllowance) {
+        const limitSeconds = allowances[matchedAllowance].limitSeconds || 0;
+        if (seconds > limitSeconds) {
+          distractionSeconds += (seconds - limitSeconds);
+        }
+      } else {
+        distractionSeconds += seconds;
+      }
+    }
     sites.add(domain);
     domainTimes.push({ domain, seconds, isStudy });
   });
