@@ -1098,7 +1098,7 @@ function refreshCustomMilestones() {
         grid.innerHTML = '';
 
         // Compute progress data
-        const progressData = computeCustomMilestoneProgress(stats, studyDomains);
+        const progressData = computeCustomMilestoneProgress(stats, studyDomains, data.hourlyStats || {});
 
         milestones.forEach(m => {
             const progress = getCustomMilestoneProgress(m, progressData);
@@ -1109,6 +1109,8 @@ function refreshCustomMilestones() {
                 progressText = '✓ Achieved!';
             } else if (m.type === 'streak') {
                 progressText = `${Math.floor(progress.current)} / ${Math.floor(progress.target)} days`;
+            } else if (progress.target === 1 && progress.current === 0) {
+                progressText = 'Not yet achieved';
             } else {
                 progressText = `${formatDuration(progress.current)} / ${formatDuration(progress.target)}`;
             }
@@ -1145,7 +1147,7 @@ function refreshCustomMilestones() {
     });
 }
 
-function computeCustomMilestoneProgress(stats, studyDomains) {
+function computeCustomMilestoneProgress(stats, studyDomains, hourlyStats) {
     let totalFocusSeconds = 0;
     let streak = 0;
     let maxDailyHours = 0;
@@ -1181,14 +1183,51 @@ function computeCustomMilestoneProgress(stats, studyDomains) {
         else break;
     }
 
+    // Night owl: collect which hours have focus activity across all dates
+    // Store a map of hour -> total focus seconds across all days
+    const nightOwlHours = {};
+    Object.entries(hourlyStats).forEach(([date, dayData]) => {
+        Object.entries(dayData).forEach(([hour, val]) => {
+            const h = parseInt(hour);
+            const focusSec = val.focus || 0;
+            if (focusSec > 0) {
+                nightOwlHours[h] = (nightOwlHours[h] || 0) + focusSec;
+            }
+        });
+    });
+
     return {
         totalHours: totalFocusSeconds / 3600,
         streak,
-        maxDailyHours
+        maxDailyHours,
+        nightOwlHours
     };
 }
 
 function getCustomMilestoneProgress(milestone, progressData) {
+    // Auto-detect night owl from description (e.g. "studying after 10pm", "focus after 11 PM")
+    const desc = (milestone.desc || '').toLowerCase();
+    const afterMatch = desc.match(/after\s*(\d{1,2})\s*(pm|am)/i);
+    if (afterMatch) {
+        let hour = parseInt(afterMatch[1]);
+        const period = afterMatch[2].toLowerCase();
+        if (period === 'pm' && hour < 12) hour += 12;
+        if (period === 'am' && hour === 12) hour = 0;
+        
+        const nightOwlHours = progressData.nightOwlHours || {};
+        let totalLateSeconds = 0;
+        // Check hours from the specified hour onward through early morning
+        for (let h = 0; h < 24; h++) {
+            const isLate = hour >= 12
+                ? (h >= hour || h <= 4)  // e.g., after 10pm means 22,23,0,1,2,3,4
+                : (h >= 0 && h <= 4 && h >= hour); // e.g., after 1am means 1,2,3,4
+            if (isLate && nightOwlHours[h]) {
+                totalLateSeconds += nightOwlHours[h];
+            }
+        }
+        return { current: totalLateSeconds >= 60 ? 1 : 0, target: 1 };
+    }
+
     switch (milestone.type) {
         case 'totalHours':
             return { current: progressData.totalHours, target: milestone.target };
@@ -1196,6 +1235,21 @@ function getCustomMilestoneProgress(milestone, progressData) {
             return { current: progressData.streak, target: milestone.target };
         case 'dailyHours':
             return { current: progressData.maxDailyHours, target: milestone.target };
+        case 'nightOwl': {
+            // Legacy support for any already-saved nightOwl type milestones
+            const afterHour = milestone.targetHour != null ? milestone.targetHour : 22;
+            let totalLateNightSeconds = 0;
+            const nightOwlHours = progressData.nightOwlHours || {};
+            for (let h = 0; h < 24; h++) {
+                const isLateNight = afterHour >= 20
+                    ? (h >= afterHour || h <= 3)
+                    : (h >= afterHour && h <= 3);
+                if (isLateNight && nightOwlHours[h]) {
+                    totalLateNightSeconds += nightOwlHours[h];
+                }
+            }
+            return { current: totalLateNightSeconds >= 60 ? 1 : 0, target: 1 };
+        }
         default:
             return { current: 0, target: milestone.target };
     }

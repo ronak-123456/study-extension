@@ -1038,6 +1038,10 @@ body.dark .badge-icon {
   transition: opacity 0.2s, background 0.2s;
 }
 
+.badge-card.unlocked .delete-milestone-btn {
+  top: 32px;
+}
+
 .badge-card:hover .delete-milestone-btn {
   opacity: 1;
 }
