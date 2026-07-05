@@ -185,11 +185,12 @@ function updateDashboard() {
     if (datePicker) datePicker.value = dateString;
     document.getElementById('nextDay').disabled = isToday(currentViewDate);
 
-    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains', 'hourlyStats'], (data) => {
+    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains', 'hourlyStats', 'allowances'], (data) => {
         const stats = data.dailyStats || {};
         const urlStats = data.dailyUrlStats || {};
         const studyDomains = data.studyDomains || [];
         const hourlyStats = data.hourlyStats || {};
+        const allowances = data.allowances || {};
 
         let focusSeconds = 0;
         let distractionSeconds = 0;
@@ -213,8 +214,25 @@ function updateDashboard() {
             const dayStats = stats[date] || {};
             Object.entries(dayStats).forEach(([domain, seconds]) => {
                 const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
-                if (isStudy) focusSeconds += seconds;
-                else distractionSeconds += seconds;
+                
+                if (isStudy) {
+                    focusSeconds += seconds;
+                } else {
+                    // Check if domain has an allowance
+                    const matchedAllowance = Object.keys(allowances).find(d =>
+                        domain === d || domain.endsWith('.' + d)
+                    );
+                    if (matchedAllowance) {
+                        const limitSeconds = allowances[matchedAllowance].limitSeconds || 0;
+                        // Only count time exceeding the allowance as distraction
+                        if (seconds > limitSeconds) {
+                            distractionSeconds += (seconds - limitSeconds);
+                        }
+                        // Time within allowance is neutral (not counted as distraction)
+                    } else {
+                        distractionSeconds += seconds;
+                    }
+                }
 
                 sitesVisited.add(domain);
 

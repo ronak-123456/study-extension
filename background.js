@@ -60,8 +60,29 @@ function updateBadge() {
         activeDomain === allowedDomain || activeDomain.endsWith(`.${allowedDomain}`)
     );
 
+    // Check if domain has an active allowance that hasn't been exceeded
+    let isWithinAllowance = false;
+    if (!isStudy) {
+      const matchedAllowanceDomain = Object.keys(data.allowances).find(d =>
+        activeDomain === d || activeDomain.endsWith('.' + d)
+      );
+      if (matchedAllowanceDomain) {
+        const { limitSeconds } = data.allowances[matchedAllowanceDomain];
+        const today = new Date().toISOString().split('T')[0];
+        const todayStats = data.dailyStats[today] || {};
+        let usedSeconds = 0;
+        Object.entries(todayStats).forEach(([d, seconds]) => {
+          if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
+            usedSeconds += seconds;
+          }
+        });
+        usedSeconds += durationSec;
+        isWithinAllowance = usedSeconds <= limitSeconds;
+      }
+    }
+
     chrome.action.setBadgeBackgroundColor({
-      color: isStudy ? '#6abf9b' : '#fca5a5'
+      color: isStudy ? '#6abf9b' : (isWithinAllowance ? '#fbbf24' : '#fca5a5')
     });
 
     const minutes = Math.floor(durationSec / 60);
@@ -71,8 +92,8 @@ function updateBadge() {
       checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec);
     }
 
-    // Graduated distraction nudges every 10 minutes
-    if (!isStudy && durationSec > 0 && minutes >= 10 && durationSec % 600 === 0) {
+    // Graduated distraction nudges every 10 minutes (skip if within allowance)
+    if (!isStudy && !isWithinAllowance && durationSec > 0 && minutes >= 10 && durationSec % 600 === 0) {
       sendGraduatedDistraction(activeTabId, activeDomain, minutes);
     }
 
@@ -208,10 +229,43 @@ function saveStats(domain, url, title, duration) {
     // Update hourly stats
     if (!hourly[today]) hourly[today] = {};
     if (!hourly[today][hour]) hourly[today][hour] = { focus: 0, distraction: 0 };
-    chrome.storage.local.get({ studyDomains: [] }, (sd) => {
+    chrome.storage.local.get({ studyDomains: [], allowances: {} }, (sd) => {
       const isStudy = sd.studyDomains.some(d => domain === d || domain.endsWith('.' + d));
-      if (isStudy) hourly[today][hour].focus += duration;
-      else hourly[today][hour].distraction += duration;
+      if (isStudy) {
+        hourly[today][hour].focus += duration;
+      } else {
+        // Check if this domain has an allowance
+        const allowances = sd.allowances || {};
+        const matchedAllowanceDomain = Object.keys(allowances).find(d =>
+          domain === d || domain.endsWith('.' + d)
+        );
+
+        if (matchedAllowanceDomain) {
+          // Has allowance — check if time is within limit
+          const { limitSeconds } = allowances[matchedAllowanceDomain];
+          const todayStats = stats[today] || {};
+          let usedSeconds = 0;
+          Object.entries(todayStats).forEach(([d, seconds]) => {
+            if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
+              usedSeconds += seconds;
+            }
+          });
+
+          if (usedSeconds > limitSeconds) {
+            // Over the limit — count the excess as distraction
+            const excessBefore = Math.max(0, (usedSeconds - duration) - limitSeconds);
+            const excessNow = usedSeconds - limitSeconds;
+            const distractionPortion = excessNow - excessBefore;
+            if (distractionPortion > 0) {
+              hourly[today][hour].distraction += distractionPortion;
+            }
+          }
+          // Within allowance — don't count as distraction (neutral time)
+        } else {
+          // No allowance — count as distraction
+          hourly[today][hour].distraction += duration;
+        }
+      }
       chrome.storage.local.set({ dailyStats: stats, dailyUrlStats: urlStats, hourlyStats: hourly });
     });
   });

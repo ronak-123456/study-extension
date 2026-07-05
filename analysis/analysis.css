@@ -1022,13 +1022,13 @@ body.dark .badge-icon {
 
 .badge-card .delete-milestone-btn {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 22px;
-  height: 22px;
+  top: -8px;
+  left: -8px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   border: none;
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
   cursor: pointer;
   display: flex;
@@ -1036,10 +1036,11 @@ body.dark .badge-icon {
   justify-content: center;
   opacity: 0;
   transition: opacity 0.2s, background 0.2s;
+  z-index: 3;
 }
 
 .badge-card.unlocked .delete-milestone-btn {
-  top: 32px;
+  top: -8px;
 }
 
 .badge-card:hover .delete-milestone-btn {
