@@ -776,8 +776,12 @@ td {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   transition: transform 0.15s;
+}
+
+body.dark .heatmap-cell {
+  border-color: var(--border);
 }
 
 .heatmap-cell:hover {
@@ -839,7 +843,11 @@ td {
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  background-color: hsl(160, 70%, 50%);
+  background-color: hsl(168, 75%, 38%);
+}
+
+body.dark .legend-cell {
+  background-color: hsl(168, 75%, 45%);
 }
 
 /* Export Menu */

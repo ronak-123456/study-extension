@@ -750,9 +750,12 @@ function renderHeatmap(hourlyStats, dates) {
                 const total = val.focus + val.distraction;
                 const focusRatio = total > 0 ? val.focus / total : 0;
                 const intensity = total / maxTotal;
-                const hue = focusRatio >= 0.5 ? 160 : 0;
-                const sat = total > 0 ? 70 : 0;
-                cell.style.backgroundColor = `hsla(${hue}, ${sat}%, 50%, ${Math.max(intensity * 0.9, 0.06)})`;
+                const isDark = document.body.classList.contains('dark');
+                const hue = focusRatio >= 0.5 ? 168 : 0;
+                const sat = total > 0 ? 75 : 0;
+                const lightness = isDark ? 45 : 38;
+                const alpha = isDark ? Math.max(intensity * 0.9, 0.06) : Math.max(intensity * 0.85, 0.08);
+                cell.style.backgroundColor = `hsla(${hue}, ${sat}%, ${lightness}%, ${alpha})`;
                 cell.title = total > 0 ? `${formatHour(h)}: ${formatTime(val.focus)} focus, ${formatTime(val.distraction)} distracted` : `${formatHour(h)}: No activity`;
                 grid.appendChild(cell);
             }
@@ -777,9 +780,12 @@ function renderHeatmap(hourlyStats, dates) {
             const total = hourData[h].focus + hourData[h].distraction;
             const focusRatio = total > 0 ? hourData[h].focus / total : 0;
             const intensity = total / maxTotal;
-            const hue = focusRatio >= 0.5 ? 160 : 0;
-            const sat = total > 0 ? 70 : 0;
-            cell.style.backgroundColor = `hsla(${hue}, ${sat}%, 50%, ${Math.max(intensity * 0.9, 0.06)})`;
+            const isDark = document.body.classList.contains('dark');
+            const hue = focusRatio >= 0.5 ? 168 : 0;
+            const sat = total > 0 ? 75 : 0;
+            const lightness = isDark ? 45 : 38;
+            const alpha = isDark ? Math.max(intensity * 0.9, 0.06) : Math.max(intensity * 0.85, 0.08);
+            cell.style.backgroundColor = `hsla(${hue}, ${sat}%, ${lightness}%, ${alpha})`;
             cell.innerHTML = `<span class="heatmap-hour">${formatHour(h)}</span>`;
             cell.title = total > 0 ? `${formatHour(h)}: ${formatTime(hourData[h].focus)} focus, ${formatTime(hourData[h].distraction)} distracted` : `${formatHour(h)}: No activity`;
             grid.appendChild(cell);
