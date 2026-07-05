@@ -1023,7 +1023,7 @@ body.dark .badge-icon {
 .badge-card .delete-milestone-btn {
   position: absolute;
   top: 8px;
-  right: 8px;
+  left: 8px;
   width: 22px;
   height: 22px;
   border-radius: 50%;
