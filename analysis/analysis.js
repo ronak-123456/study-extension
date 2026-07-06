@@ -185,13 +185,14 @@ function updateDashboard() {
     if (datePicker) datePicker.value = dateString;
     document.getElementById('nextDay').disabled = isToday(currentViewDate);
 
-    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains', 'hourlyStats', 'allowances', 'tempFocusLog'], (data) => {
+    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains', 'hourlyStats', 'allowances', 'tempFocusLog', 'tempFocusPasses'], (data) => {
         const stats = data.dailyStats || {};
         const urlStats = data.dailyUrlStats || {};
         const studyDomains = data.studyDomains || [];
         const hourlyStats = data.hourlyStats || {};
         const allowances = data.allowances || {};
         const tempFocusLog = data.tempFocusLog || {};
+        const tempFocusPasses = data.tempFocusPasses || {};
 
         let focusSeconds = 0;
         let distractionSeconds = 0;
@@ -217,8 +218,20 @@ function updateDashboard() {
             Object.entries(dayStats).forEach(([domain, seconds]) => {
                 const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
                 
-                // Check how much of this domain's time was under a temp focus pass
-                const tempFocusSeconds = dayTempFocus[domain] || 0;
+                // Check if domain has temp focus time logged
+                let tempFocusSeconds = dayTempFocus[domain] || 0;
+                
+                // Also check if there's a currently active pass for this domain
+                // (covers time tracked before tempFocusLog was introduced)
+                if (!isStudy && tempFocusSeconds === 0) {
+                    const hasActivePass = Object.entries(tempFocusPasses).find(([d, p]) =>
+                        (domain === d || domain.endsWith('.' + d)) && p.expiresAt > Date.now()
+                    );
+                    if (hasActivePass) {
+                        // All time today on this domain during an active pass counts as focus
+                        tempFocusSeconds = seconds;
+                    }
+                }
                 
                 if (isStudy) {
                     focusSeconds += seconds;
