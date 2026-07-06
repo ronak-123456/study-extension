@@ -185,12 +185,14 @@ function updateDashboard() {
     if (datePicker) datePicker.value = dateString;
     document.getElementById('nextDay').disabled = isToday(currentViewDate);
 
-    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains', 'hourlyStats', 'allowances'], (data) => {
+    chrome.storage.local.get(['dailyStats', 'dailyUrlStats', 'studyDomains', 'hourlyStats', 'allowances', 'tempFocusLog', 'tempFocusPasses'], (data) => {
         const stats = data.dailyStats || {};
         const urlStats = data.dailyUrlStats || {};
         const studyDomains = data.studyDomains || [];
         const hourlyStats = data.hourlyStats || {};
         const allowances = data.allowances || {};
+        const tempFocusLog = data.tempFocusLog || {};
+        const tempFocusPasses = data.tempFocusPasses || {};
 
         let focusSeconds = 0;
         let distractionSeconds = 0;
@@ -212,11 +214,45 @@ function updateDashboard() {
         // Aggregate stats
         datesToProcess.forEach(date => {
             const dayStats = stats[date] || {};
+            const dayTempFocus = tempFocusLog[date] || {};
             Object.entries(dayStats).forEach(([domain, seconds]) => {
                 const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
                 
+                // Check if domain has temp focus time logged
+                let tempFocusSeconds = dayTempFocus[domain] || 0;
+                
+                // Also check if there's a currently active pass for this domain
+                // (covers time tracked before tempFocusLog was introduced)
+                if (!isStudy && tempFocusSeconds === 0) {
+                    const hasActivePass = Object.entries(tempFocusPasses).find(([d, p]) =>
+                        (domain === d || domain.endsWith('.' + d)) && p.expiresAt > Date.now()
+                    );
+                    if (hasActivePass) {
+                        // All time today on this domain during an active pass counts as focus
+                        tempFocusSeconds = seconds;
+                    }
+                }
+                
                 if (isStudy) {
                     focusSeconds += seconds;
+                } else if (tempFocusSeconds > 0) {
+                    // Time under temp focus pass counts as deep work
+                    focusSeconds += Math.min(tempFocusSeconds, seconds);
+                    const remainingSeconds = seconds - Math.min(tempFocusSeconds, seconds);
+                    if (remainingSeconds > 0) {
+                        // Remaining time: check allowance
+                        const matchedAllowance = Object.keys(allowances).find(d =>
+                            domain === d || domain.endsWith('.' + d)
+                        );
+                        if (matchedAllowance) {
+                            const limitSeconds = allowances[matchedAllowance].limitSeconds || 0;
+                            if (remainingSeconds > limitSeconds) {
+                                distractionSeconds += (remainingSeconds - limitSeconds);
+                            }
+                        } else {
+                            distractionSeconds += remainingSeconds;
+                        }
+                    }
                 } else {
                     // Check if domain has an allowance
                     const matchedAllowance = Object.keys(allowances).find(d =>
@@ -224,11 +260,9 @@ function updateDashboard() {
                     );
                     if (matchedAllowance) {
                         const limitSeconds = allowances[matchedAllowance].limitSeconds || 0;
-                        // Only count time exceeding the allowance as distraction
                         if (seconds > limitSeconds) {
                             distractionSeconds += (seconds - limitSeconds);
                         }
-                        // Time within allowance is neutral (not counted as distraction)
                     } else {
                         distractionSeconds += seconds;
                     }
@@ -238,7 +272,7 @@ function updateDashboard() {
 
                 const friendly = getFriendlyName(domain);
                 if (!domainAggregation[friendly]) {
-                    domainAggregation[friendly] = { seconds: 0, isStudy: isStudy };
+                    domainAggregation[friendly] = { seconds: 0, isStudy: isStudy || tempFocusSeconds > 0 };
                 }
                 domainAggregation[friendly].seconds += seconds;
             });
@@ -926,7 +960,7 @@ function exportData(format) {
         const studyDomains = data.studyDomains || [];
         if (format === 'json') {
             const blob = new Blob([JSON.stringify({ dailyStats: stats, studyDomains }, null, 2)], { type: 'application/json' });
-            downloadBlob(blob, 'focus-flow-data.json');
+            downloadBlob(blob, 'hocus-focus-data.json');
         } else {
             let csv = 'Date,Domain,Category,Seconds,Type\n';
             Object.entries(stats).forEach(([date, domains]) => {
@@ -936,7 +970,7 @@ function exportData(format) {
                 });
             });
             const blob = new Blob([csv], { type: 'text/csv' });
-            downloadBlob(blob, 'focus-flow-data.csv');
+            downloadBlob(blob, 'hocus-focus-data.csv');
         }
     });
     document.getElementById('exportMenu').classList.remove('active');
