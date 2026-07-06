@@ -960,7 +960,7 @@ function exportData(format) {
         const studyDomains = data.studyDomains || [];
         if (format === 'json') {
             const blob = new Blob([JSON.stringify({ dailyStats: stats, studyDomains }, null, 2)], { type: 'application/json' });
-            downloadBlob(blob, 'focus-flow-data.json');
+            downloadBlob(blob, 'hocus-focus-data.json');
         } else {
             let csv = 'Date,Domain,Category,Seconds,Type\n';
             Object.entries(stats).forEach(([date, domains]) => {

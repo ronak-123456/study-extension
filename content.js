@@ -1,4 +1,4 @@
-console.log('Focus Flow Analyzer: Content script loaded');
+console.log('Hocus Focus: Content script loaded');
 
 // =============================================
 // Shared Styles
@@ -153,7 +153,7 @@ function createNudgeModal(domain, customMessage) {
   card.className = 'ff-notification-card';
   card.innerHTML = `
     <div class="ff-logo-wrap">
-      <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Focus Flow">
+      <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Hocus Focus">
     </div>
     <h3 class="ff-title">Stay Focused!</h3>
     <p class="ff-message">${customMessage || `You wandered onto <strong>${domain}</strong>.<br>Time to get back to work!`}</p>
@@ -242,7 +242,7 @@ function createDistractionBlock(domain, minutes, message, severity) {
   card.className = 'ff-notification-card';
   card.innerHTML = `
     <div class="ff-logo-wrap">
-      <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Focus Flow">
+      <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Hocus Focus">
     </div>
     <span class="ff-time-badge">${minutes} min on ${domain.replace('www.', '')}</span>
     <h3 class="ff-title">${emoji} ${title}</h3>
@@ -339,7 +339,7 @@ function createStudyEncouragement(domain, minutes, message) {
   card.className = 'ff-notification-card ff-celebration';
   card.innerHTML = `
     <div class="ff-logo-wrap">
-      <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Focus Flow">
+      <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Hocus Focus">
     </div>
     <span class="ff-time-badge">🎯 ${timeLabel} focused on ${domain.replace('www.', '')}</span>
     <h3 class="ff-title">🌟 Great Work!</h3>
