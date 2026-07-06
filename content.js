@@ -115,7 +115,7 @@ function createNudgeModal(domain, customMessage) {
   removeExisting();
 
   const container = document.createElement('div');
-  container.id = 'focus-flow-nudge-container';
+  container.id = 'hocus-focus-nudge-container';
   container.className = 'ff-notification-container';
 
   const style = document.createElement('style');
@@ -175,7 +175,7 @@ function createDistractionBlock(domain, minutes, message, severity) {
   removeExisting();
 
   const container = document.createElement('div');
-  container.id = 'focus-flow-nudge-container';
+  container.id = 'hocus-focus-nudge-container';
   container.className = 'ff-notification-container';
 
   const colors = {
@@ -282,7 +282,7 @@ function createStudyEncouragement(domain, minutes, message) {
   removeExisting();
 
   const container = document.createElement('div');
-  container.id = 'focus-flow-nudge-container';
+  container.id = 'hocus-focus-nudge-container';
   container.className = 'ff-notification-container';
 
   const style = document.createElement('style');
@@ -359,7 +359,7 @@ function createStudyEncouragement(domain, minutes, message) {
 // Helpers
 // =============================================
 function removeExisting() {
-  const existing = document.getElementById('focus-flow-nudge-container');
+  const existing = document.getElementById('hocus-focus-nudge-container');
   if (existing) existing.remove();
 }
 
@@ -388,7 +388,7 @@ function createAllowanceCountdown(domain, remainingSeconds, limitSeconds, level)
   removeExisting();
 
   const container = document.createElement('div');
-  container.id = 'focus-flow-nudge-container';
+  container.id = 'hocus-focus-nudge-container';
   container.className = 'ff-notification-container';
 
   const isExceeded = level === 'exceeded';

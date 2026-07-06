@@ -970,7 +970,7 @@ function exportData(format) {
                 });
             });
             const blob = new Blob([csv], { type: 'text/csv' });
-            downloadBlob(blob, 'focus-flow-data.csv');
+            downloadBlob(blob, 'hocus-focus-data.csv');
         }
     });
     document.getElementById('exportMenu').classList.remove('active');
