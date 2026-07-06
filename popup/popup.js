@@ -502,14 +502,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Get current tab domain
   async function getCurrentDomain() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && tab.url) {
-      try {
-        return new URL(tab.url).hostname.toLowerCase();
-      } catch (e) {
-        return null;
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.url) {
+        const url = new URL(tab.url);
+        return url.hostname.toLowerCase();
       }
-    }
+    } catch (e) {}
     return null;
   }
 
@@ -520,8 +519,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const domain = await getCurrentDomain();
       if (!domain) return;
 
-      chrome.runtime.sendMessage({ action: 'startTempFocusPass', domain, minutes }, () => {
-        showActivePass(domain, Date.now() + (minutes * 60 * 1000));
+      // Save directly to storage from popup (more reliable than messaging)
+      chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+        const passes = data.tempFocusPasses || {};
+        const expiresAt = Date.now() + (minutes * 60 * 1000);
+        passes[domain] = { expiresAt, minutes };
+        chrome.storage.local.set({ tempFocusPasses: passes }, () => {
+          // Create alarm for expiry
+          chrome.alarms.create(`tempFocus_${domain}`, { delayInMinutes: Math.max(minutes, 1) });
+          showActivePass(domain, expiresAt);
+        });
       });
     });
   });
@@ -530,8 +537,13 @@ document.addEventListener('DOMContentLoaded', () => {
   cancelBtn.addEventListener('click', () => {
     const domain = domainEl.textContent;
     if (domain) {
-      chrome.runtime.sendMessage({ action: 'cancelTempFocusPass', domain }, () => {
-        showInactive();
+      chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+        const passes = data.tempFocusPasses || {};
+        delete passes[domain];
+        chrome.storage.local.set({ tempFocusPasses: passes }, () => {
+          chrome.alarms.clear(`tempFocus_${domain}`);
+          showInactive();
+        });
       });
     }
   });
@@ -568,19 +580,13 @@ document.addEventListener('DOMContentLoaded', () => {
     activeSection.style.display = 'none';
   }
 
-  // On popup open, check if there's an active pass for the current domain
-  async function checkActivePass() {
-    const domain = await getCurrentDomain();
-    if (!domain) return;
-
-    chrome.runtime.sendMessage({ action: 'getTempFocusStatus' }, (response) => {
-      if (chrome.runtime.lastError || !response) return;
-      const passes = response.passes || {};
-      const matchedEntry = Object.entries(passes).find(([d]) =>
-        domain === d || domain.endsWith('.' + d)
-      );
-      if (matchedEntry && matchedEntry[1].expiresAt > Date.now()) {
-        showActivePass(matchedEntry[0], matchedEntry[1].expiresAt);
+  // On popup open, check if there's any active pass
+  function checkActivePass() {
+    chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+      const passes = data.tempFocusPasses || {};
+      const activeEntry = Object.entries(passes).find(([d, p]) => p.expiresAt > Date.now());
+      if (activeEntry) {
+        showActivePass(activeEntry[0], activeEntry[1].expiresAt);
       }
     });
   }

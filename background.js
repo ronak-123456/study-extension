@@ -874,6 +874,23 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     }
     updateBadge();
   }
+  if (alarm.name.startsWith('tempFocus_')) {
+    const domain = alarm.name.replace('tempFocus_', '');
+    chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+      const passes = data.tempFocusPasses;
+      if (passes[domain]) {
+        delete passes[domain];
+        chrome.storage.local.set({ tempFocusPasses: passes });
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+          title: '🛡️ Focus Pass Expired',
+          message: `Your temp focus pass for ${domain} has ended. Time on this site now counts as distraction.`,
+          priority: 2
+        });
+      }
+    });
+  }
 });
 
 // =============================================
@@ -922,29 +939,6 @@ function hasTempFocusPass(domain, callback) {
     }
   });
 }
-
-// Handle temp focus pass expiry alarm
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name.startsWith('tempFocus_')) {
-    const domain = alarm.name.replace('tempFocus_', '');
-    chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
-      const passes = data.tempFocusPasses;
-      if (passes[domain]) {
-        delete passes[domain];
-        chrome.storage.local.set({ tempFocusPasses: passes });
-
-        // Send expiry notification
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-          title: '🛡️ Focus Pass Expired',
-          message: `Your temp focus pass for ${domain} has ended. Time on this site now counts as distraction.`,
-          priority: 2
-        });
-      }
-    });
-  }
-});
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
