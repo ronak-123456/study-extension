@@ -865,6 +865,102 @@
       font-style: italic;
     }
 
+    /* Temp Focus Pass */
+    .temp-focus-section {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .temp-focus-header {
+      margin-bottom: 10px;
+    }
+
+    .temp-focus-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 2px 0;
+    }
+
+    .temp-focus-subtitle {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .temp-focus-durations {
+      display: flex;
+      gap: 8px;
+    }
+
+    .temp-focus-dur-btn {
+      flex: 1;
+      padding: 8px 0;
+      border: 1px solid var(--primary);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .temp-focus-dur-btn:hover {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(106, 191, 155, 0.3);
+    }
+
+    body.dark .temp-focus-dur-btn:hover {
+      color: #0a1413;
+    }
+
+    .temp-focus-active {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary);
+      border-radius: 10px;
+    }
+
+    .temp-focus-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .temp-focus-domain {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .temp-focus-countdown {
+      font-size: 11px;
+      color: var(--primary-strong);
+      font-weight: 600;
+    }
+
+    .temp-focus-cancel-btn {
+      padding: 5px 12px;
+      border: 1px solid var(--danger);
+      border-radius: 6px;
+      background: var(--danger-soft);
+      color: var(--danger);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .temp-focus-cancel-btn:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+
   </style>
 </head>
 
@@ -950,6 +1046,29 @@
       </div>
       <button id="addCurrentAllowanceBtn" class="secondary-btn" style="margin-bottom: 10px; font-size: 12px; padding: 8px;">+ Limit Current Website</button>
       <ul id="allowanceList" class="allowance-list"></ul>
+    </div>
+
+    <!-- Temp Focus Pass -->
+    <div class="temp-focus-section">
+      <div class="temp-focus-header">
+        <h3 class="temp-focus-title">🛡️ Temp Focus Pass</h3>
+        <span class="temp-focus-subtitle">Temporarily treat current site as focus</span>
+      </div>
+      <div id="tempFocusInactive" class="temp-focus-controls">
+        <div class="temp-focus-durations">
+          <button class="temp-focus-dur-btn" data-minutes="5">5m</button>
+          <button class="temp-focus-dur-btn" data-minutes="10">10m</button>
+          <button class="temp-focus-dur-btn" data-minutes="15">15m</button>
+          <button class="temp-focus-dur-btn" data-minutes="30">30m</button>
+        </div>
+      </div>
+      <div id="tempFocusActive" class="temp-focus-active" style="display:none;">
+        <div class="temp-focus-info">
+          <span class="temp-focus-domain" id="tempFocusDomain"></span>
+          <span class="temp-focus-countdown" id="tempFocusCountdown"></span>
+        </div>
+        <button id="tempFocusCancel" class="temp-focus-cancel-btn">Cancel</button>
+      </div>
     </div>
 
     <!-- Pomodoro Timer -->

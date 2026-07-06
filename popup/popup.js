@@ -489,3 +489,101 @@ document.addEventListener('DOMContentLoaded', () => {
     labelEl.textContent = LABELS[currentMode];
   }
 })();
+
+// Temp Focus Pass
+(function() {
+  const durationBtns = document.querySelectorAll('.temp-focus-dur-btn');
+  const inactiveSection = document.getElementById('tempFocusInactive');
+  const activeSection = document.getElementById('tempFocusActive');
+  const domainEl = document.getElementById('tempFocusDomain');
+  const countdownEl = document.getElementById('tempFocusCountdown');
+  const cancelBtn = document.getElementById('tempFocusCancel');
+  let countdownInterval = null;
+
+  // Get current tab domain
+  async function getCurrentDomain() {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && tab.url) {
+      try {
+        return new URL(tab.url).hostname.toLowerCase();
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // Start a temp focus pass
+  durationBtns.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const minutes = parseInt(btn.dataset.minutes);
+      const domain = await getCurrentDomain();
+      if (!domain) return;
+
+      chrome.runtime.sendMessage({ action: 'startTempFocusPass', domain, minutes }, () => {
+        showActivePass(domain, Date.now() + (minutes * 60 * 1000));
+      });
+    });
+  });
+
+  // Cancel
+  cancelBtn.addEventListener('click', () => {
+    const domain = domainEl.textContent;
+    if (domain) {
+      chrome.runtime.sendMessage({ action: 'cancelTempFocusPass', domain }, () => {
+        showInactive();
+      });
+    }
+  });
+
+  // Show active pass state with countdown
+  function showActivePass(domain, expiresAt) {
+    inactiveSection.style.display = 'none';
+    activeSection.style.display = 'flex';
+    domainEl.textContent = domain;
+    updateCountdown(expiresAt);
+
+    clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        clearInterval(countdownInterval);
+        showInactive();
+      } else {
+        updateCountdown(expiresAt);
+      }
+    }, 1000);
+  }
+
+  function updateCountdown(expiresAt) {
+    const remaining = Math.max(0, expiresAt - Date.now());
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    countdownEl.textContent = `${mins}m ${secs}s remaining`;
+  }
+
+  function showInactive() {
+    clearInterval(countdownInterval);
+    inactiveSection.style.display = 'block';
+    activeSection.style.display = 'none';
+  }
+
+  // On popup open, check if there's an active pass for the current domain
+  async function checkActivePass() {
+    const domain = await getCurrentDomain();
+    if (!domain) return;
+
+    chrome.runtime.sendMessage({ action: 'getTempFocusStatus' }, (response) => {
+      if (chrome.runtime.lastError || !response) return;
+      const passes = response.passes || {};
+      const matchedEntry = Object.entries(passes).find(([d]) =>
+        domain === d || domain.endsWith('.' + d)
+      );
+      if (matchedEntry && matchedEntry[1].expiresAt > Date.now()) {
+        showActivePass(matchedEntry[0], matchedEntry[1].expiresAt);
+      }
+    });
+  }
+
+  checkActivePass();
+})();

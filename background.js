@@ -54,15 +54,26 @@ function updateBadge() {
   chrome.action.setBadgeText({ text: badgeText });
 
   // Update periodic reminder if on distraction
-  chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {} }, (data) => {
-    const isStudy = data.studyDomains.some(
+  chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {}, tempFocusPasses: {} }, (data) => {
+    let isStudy = data.studyDomains.some(
       (allowedDomain) =>
         activeDomain === allowedDomain || activeDomain.endsWith(`.${allowedDomain}`)
     );
 
+    // Check if domain has an active temp focus pass
+    let hasTempPass = false;
+    if (!isStudy) {
+      const matchedPass = Object.entries(data.tempFocusPasses).find(([d]) =>
+        activeDomain === d || activeDomain.endsWith('.' + d)
+      );
+      if (matchedPass && matchedPass[1].expiresAt > Date.now()) {
+        hasTempPass = true;
+      }
+    }
+
     // Check if domain has an active allowance that hasn't been exceeded
     let isWithinAllowance = false;
-    if (!isStudy) {
+    if (!isStudy && !hasTempPass) {
       const matchedAllowanceDomain = Object.keys(data.allowances).find(d =>
         activeDomain === d || activeDomain.endsWith('.' + d)
       );
@@ -82,18 +93,18 @@ function updateBadge() {
     }
 
     chrome.action.setBadgeBackgroundColor({
-      color: isStudy ? '#6abf9b' : (isWithinAllowance ? '#fbbf24' : '#fca5a5')
+      color: (isStudy || hasTempPass) ? '#6abf9b' : (isWithinAllowance ? '#fbbf24' : '#fca5a5')
     });
 
     const minutes = Math.floor(durationSec / 60);
 
-    // --- Allowance System Check (only for non-study sites) ---
-    if (!isStudy) {
+    // --- Allowance System Check (only for non-study sites without temp pass) ---
+    if (!isStudy && !hasTempPass) {
       checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec);
     }
 
-    // Graduated distraction nudges every 10 minutes (skip if within allowance)
-    if (!isStudy && !isWithinAllowance && durationSec > 0 && minutes >= 10 && durationSec % 600 === 0) {
+    // Graduated distraction nudges every 10 minutes (skip if within allowance or temp pass)
+    if (!isStudy && !hasTempPass && !isWithinAllowance && durationSec > 0 && minutes >= 10 && durationSec % 600 === 0) {
       sendGraduatedDistraction(activeTabId, activeDomain, minutes);
     }
 
@@ -229,41 +240,50 @@ function saveStats(domain, url, title, duration) {
     // Update hourly stats
     if (!hourly[today]) hourly[today] = {};
     if (!hourly[today][hour]) hourly[today][hour] = { focus: 0, distraction: 0 };
-    chrome.storage.local.get({ studyDomains: [], allowances: {} }, (sd) => {
+    chrome.storage.local.get({ studyDomains: [], allowances: {}, tempFocusPasses: {} }, (sd) => {
       const isStudy = sd.studyDomains.some(d => domain === d || domain.endsWith('.' + d));
       if (isStudy) {
         hourly[today][hour].focus += duration;
       } else {
-        // Check if this domain has an allowance
-        const allowances = sd.allowances || {};
-        const matchedAllowanceDomain = Object.keys(allowances).find(d =>
+        // Check if domain has an active temp focus pass
+        const matchedPass = Object.entries(sd.tempFocusPasses).find(([d]) =>
           domain === d || domain.endsWith('.' + d)
         );
-
-        if (matchedAllowanceDomain) {
-          // Has allowance — check if time is within limit
-          const { limitSeconds } = allowances[matchedAllowanceDomain];
-          const todayStats = stats[today] || {};
-          let usedSeconds = 0;
-          Object.entries(todayStats).forEach(([d, seconds]) => {
-            if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-              usedSeconds += seconds;
-            }
-          });
-
-          if (usedSeconds > limitSeconds) {
-            // Over the limit — count the excess as distraction
-            const excessBefore = Math.max(0, (usedSeconds - duration) - limitSeconds);
-            const excessNow = usedSeconds - limitSeconds;
-            const distractionPortion = excessNow - excessBefore;
-            if (distractionPortion > 0) {
-              hourly[today][hour].distraction += distractionPortion;
-            }
-          }
-          // Within allowance — don't count as distraction (neutral time)
+        if (matchedPass && matchedPass[1].expiresAt > Date.now()) {
+          // Temp focus pass active — count as focus
+          hourly[today][hour].focus += duration;
         } else {
-          // No allowance — count as distraction
-          hourly[today][hour].distraction += duration;
+          // Check if this domain has an allowance
+          const allowances = sd.allowances || {};
+          const matchedAllowanceDomain = Object.keys(allowances).find(d =>
+            domain === d || domain.endsWith('.' + d)
+          );
+
+          if (matchedAllowanceDomain) {
+            // Has allowance — check if time is within limit
+            const { limitSeconds } = allowances[matchedAllowanceDomain];
+            const todayStats = stats[today] || {};
+            let usedSeconds = 0;
+            Object.entries(todayStats).forEach(([d, seconds]) => {
+              if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
+                usedSeconds += seconds;
+              }
+            });
+
+            if (usedSeconds > limitSeconds) {
+              // Over the limit — count the excess as distraction
+              const excessBefore = Math.max(0, (usedSeconds - duration) - limitSeconds);
+              const excessNow = usedSeconds - limitSeconds;
+              const distractionPortion = excessNow - excessBefore;
+              if (distractionPortion > 0) {
+                hourly[today][hour].distraction += distractionPortion;
+              }
+            }
+            // Within allowance — don't count as distraction (neutral time)
+          } else {
+            // No allowance — count as distraction
+            hourly[today][hour].distraction += duration;
+          }
         }
       }
       chrome.storage.local.set({ dailyStats: stats, dailyUrlStats: urlStats, hourlyStats: hourly });
@@ -853,5 +873,91 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       badgeTimerInterval = setInterval(updateBadge, 1000);
     }
     updateBadge();
+  }
+});
+
+// =============================================
+// Temp Focus Pass
+// =============================================
+
+// Start a temp focus pass for a domain
+function startTempFocusPass(domain, minutes) {
+  const expiresAt = Date.now() + (minutes * 60 * 1000);
+  chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+    const passes = data.tempFocusPasses;
+    passes[domain] = { expiresAt, minutes };
+    chrome.storage.local.set({ tempFocusPasses: passes });
+
+    // Create an alarm to expire this pass
+    chrome.alarms.create(`tempFocus_${domain}`, { delayInMinutes: minutes });
+  });
+}
+
+// Cancel a temp focus pass
+function cancelTempFocusPass(domain) {
+  chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+    const passes = data.tempFocusPasses;
+    delete passes[domain];
+    chrome.storage.local.set({ tempFocusPasses: passes });
+    chrome.alarms.clear(`tempFocus_${domain}`);
+  });
+}
+
+// Check if a domain has an active temp focus pass
+function hasTempFocusPass(domain, callback) {
+  chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+    const passes = data.tempFocusPasses;
+    const pass = Object.entries(passes).find(([d]) =>
+      domain === d || domain.endsWith('.' + d)
+    );
+    if (pass && pass[1].expiresAt > Date.now()) {
+      callback(true);
+    } else {
+      // Clean up expired pass
+      if (pass) {
+        delete passes[pass[0]];
+        chrome.storage.local.set({ tempFocusPasses: passes });
+      }
+      callback(false);
+    }
+  });
+}
+
+// Handle temp focus pass expiry alarm
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name.startsWith('tempFocus_')) {
+    const domain = alarm.name.replace('tempFocus_', '');
+    chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+      const passes = data.tempFocusPasses;
+      if (passes[domain]) {
+        delete passes[domain];
+        chrome.storage.local.set({ tempFocusPasses: passes });
+
+        // Send expiry notification
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+          title: '🛡️ Focus Pass Expired',
+          message: `Your temp focus pass for ${domain} has ended. Time on this site now counts as distraction.`,
+          priority: 2
+        });
+      }
+    });
+  }
+});
+
+// Listen for messages from popup
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'startTempFocusPass') {
+    startTempFocusPass(message.domain, message.minutes);
+    sendResponse({ success: true });
+  } else if (message.action === 'cancelTempFocusPass') {
+    cancelTempFocusPass(message.domain);
+    sendResponse({ success: true });
+  } else if (message.action === 'getTempFocusStatus') {
+    chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+      sendResponse({ passes: data.tempFocusPasses });
+    });
+    return true; // async response
   }
 });
