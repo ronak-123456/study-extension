@@ -218,10 +218,11 @@ function beginFreshTracking(tabId, url, title, domain) {
 function saveStats(domain, url, title, duration) {
   const today = new Date().toISOString().split('T')[0];
   const hour = new Date().getHours();
-  chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {}, hourlyStats: {} }, (data) => {
+  chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {}, hourlyStats: {}, tempFocusLog: {} }, (data) => {
     const stats = data.dailyStats;
     const urlStats = data.dailyUrlStats;
     const hourly = data.hourlyStats;
+    const tempFocusLog = data.tempFocusLog;
 
     // Update domain stats
     if (!stats[today]) stats[today] = {};
@@ -234,7 +235,6 @@ function saveStats(domain, url, title, duration) {
       urlStats[today][url] = { title: title, domain: domain, duration: 0 };
     }
     urlStats[today][url].duration += duration;
-    // Always update title in case it changed
     urlStats[today][url].title = title || urlStats[today][url].title;
 
     // Update hourly stats
@@ -252,6 +252,10 @@ function saveStats(domain, url, title, duration) {
         if (matchedPass && matchedPass[1].expiresAt > Date.now()) {
           // Temp focus pass active — count as focus
           hourly[today][hour].focus += duration;
+          // Log this time so dashboard knows it's deep work
+          if (!tempFocusLog[today]) tempFocusLog[today] = {};
+          if (!tempFocusLog[today][domain]) tempFocusLog[today][domain] = 0;
+          tempFocusLog[today][domain] += duration;
         } else {
           // Check if this domain has an allowance
           const allowances = sd.allowances || {};
@@ -260,7 +264,6 @@ function saveStats(domain, url, title, duration) {
           );
 
           if (matchedAllowanceDomain) {
-            // Has allowance — check if time is within limit
             const { limitSeconds } = allowances[matchedAllowanceDomain];
             const todayStats = stats[today] || {};
             let usedSeconds = 0;
@@ -271,7 +274,6 @@ function saveStats(domain, url, title, duration) {
             });
 
             if (usedSeconds > limitSeconds) {
-              // Over the limit — count the excess as distraction
               const excessBefore = Math.max(0, (usedSeconds - duration) - limitSeconds);
               const excessNow = usedSeconds - limitSeconds;
               const distractionPortion = excessNow - excessBefore;
@@ -279,14 +281,12 @@ function saveStats(domain, url, title, duration) {
                 hourly[today][hour].distraction += distractionPortion;
               }
             }
-            // Within allowance — don't count as distraction (neutral time)
           } else {
-            // No allowance — count as distraction
             hourly[today][hour].distraction += duration;
           }
         }
       }
-      chrome.storage.local.set({ dailyStats: stats, dailyUrlStats: urlStats, hourlyStats: hourly });
+      chrome.storage.local.set({ dailyStats: stats, dailyUrlStats: urlStats, hourlyStats: hourly, tempFocusLog: tempFocusLog });
     });
   });
 }
