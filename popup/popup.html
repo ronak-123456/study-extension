@@ -955,8 +955,15 @@
     }
 
     @keyframes tipFadeIn {
-      from { opacity: 0; transform: translateY(-8px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .tip-header {
@@ -1060,7 +1067,6 @@
       background: var(--danger);
       color: #fff;
     }
-
   </style>
 </head>
 
@@ -1068,7 +1074,7 @@
   <div class="popup">
     <div class="header-actions">
       <div style="display: flex; gap: 8px; align-items: center;">
-        <span class="badge">✨ Hocus Focus</span>
+        <span class="badge">Hocus Focus</span>
         <button id="themeToggle" class="icon-btn" title="Toggle Theme">
           <svg id="moonIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
             stroke-width="2">
@@ -1144,7 +1150,8 @@
           <button id="addAllowanceBtn" class="allowance-add-btn" title="Add allowance">Set Limit</button>
         </div>
       </div>
-      <button id="addCurrentAllowanceBtn" class="secondary-btn" style="margin-bottom: 10px; font-size: 12px; padding: 8px;">+ Limit Current Website</button>
+      <button id="addCurrentAllowanceBtn" class="secondary-btn"
+        style="margin-bottom: 10px; font-size: 12px; padding: 8px;">+ Limit Current Website</button>
       <ul id="allowanceList" class="allowance-list"></ul>
     </div>
 
@@ -1191,15 +1198,26 @@
       </div>
       <div class="pomo-controls">
         <button id="pomoStart" class="pomo-btn pomo-start">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
           Start
         </button>
         <button id="pomoPause" class="pomo-btn pomo-pause" style="display:none">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="4" width="4" height="16" />
+            <rect x="14" y="4" width="4" height="16" />
+          </svg>
           Pause
         </button>
         <button id="pomoReset" class="pomo-btn pomo-reset">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10" />
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
           Reset
         </button>
       </div>

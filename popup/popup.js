@@ -548,6 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
   durationBtns.forEach(btn => {
     btn.addEventListener('click', async () => {
       const minutes = parseInt(btn.dataset.minutes);
+      if (!minutes || minutes <= 0) return;
       const domain = await getCurrentDomain();
       if (!domain) return;
 
