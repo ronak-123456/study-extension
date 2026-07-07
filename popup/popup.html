@@ -15,6 +15,8 @@
       --primary: #6abf9b;
       --primary-strong: #57ae8b;
       --primary-soft: #d8f2e5;
+      --yellow: #f59e0b;
+      --yellow-soft: #fef3c7;
       --line: #cde8db;
       --danger: #d95d5d;
       --danger-soft: #ffe9e9;
@@ -30,6 +32,8 @@
       --primary: #A5E9DD;
       --primary-strong: #FDE047;
       --primary-soft: #1a3632;
+      --yellow: #fbbf24;
+      --yellow-soft: rgba(251, 191, 36, 0.1);
       --line: #34908b;
       --shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     }
@@ -118,14 +122,14 @@
       font-weight: 700;
       padding: 4px 8px;
       border-radius: 999px;
-      background: var(--primary-soft);
+      background: linear-gradient(135deg, var(--primary-soft), var(--yellow-soft));
       color: var(--text);
-      border: 1px solid var(--line);
+      border: 1px solid var(--primary);
     }
 
     body.dark .badge {
-      color: #fdf4af;
-      background: rgba(165, 233, 221, 0.1);
+      color: #fbbf24;
+      background: linear-gradient(135deg, rgba(165, 233, 221, 0.1), rgba(251, 191, 36, 0.1));
       border-color: #6fbeb2;
     }
 
@@ -488,6 +492,20 @@
       font-size: 14px;
       font-weight: 700;
       color: var(--text);
+    }
+
+    .pomo-title::before,
+    .allowance-title::before,
+    .temp-focus-title::before,
+    .tasks-title::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--yellow);
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
     }
 
     .pomo-tabs {
@@ -1231,7 +1249,7 @@
   <div class="popup">
     <div class="header-actions">
       <div style="display: flex; gap: 8px; align-items: center;">
-        <span class="badge">Hocus Focus</span>
+        <span class="badge"><span style="color:var(--primary-strong);">Hocus</span> <span style="color:var(--yellow);">Focus</span></span>
         <button id="themeToggle" class="icon-btn" title="Toggle Theme">
           <svg id="moonIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
             stroke-width="2">

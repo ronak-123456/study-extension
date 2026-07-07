@@ -353,7 +353,7 @@ header {
   content: '';
   width: 4px;
   height: 20px;
-  background: var(--primary);
+  background: var(--yellow);
   border-radius: 2px;
 }
 
