@@ -5,8 +5,10 @@ document.getElementById('btnGoStep2').addEventListener('click', () => goToStep(2
 document.getElementById('btnBackStep1').addEventListener('click', () => goToStep(1));
 document.getElementById('btnGoStep3').addEventListener('click', () => goToStep(3));
 document.getElementById('btnBackStep2').addEventListener('click', () => goToStep(2));
+document.getElementById('btnGoStep4').addEventListener('click', () => goToStep(4));
+document.getElementById('btnBackStep3').addEventListener('click', () => goToStep(3));
 document.getElementById('btnFinish').addEventListener('click', finishSetup);
-document.getElementById('btnSkip').addEventListener('click', finishSetup);
+document.getElementById('btnSkip3').addEventListener('click', () => goToStep(4));
 document.getElementById('btnAddCustom').addEventListener('click', addCustomDomain);
 
 // Chip selection
