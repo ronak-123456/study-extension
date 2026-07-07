@@ -498,6 +498,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const domainEl = document.getElementById('tempFocusDomain');
   const countdownEl = document.getElementById('tempFocusCountdown');
   const cancelBtn = document.getElementById('tempFocusCancel');
+  const customMinInput = document.getElementById('tempFocusCustomMin');
+  const customBtn = document.getElementById('tempFocusCustomBtn');
   let countdownInterval = null;
 
   // Get current tab domain
@@ -525,12 +527,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const expiresAt = Date.now() + (minutes * 60 * 1000);
         passes[domain] = { expiresAt, minutes };
         chrome.storage.local.set({ tempFocusPasses: passes }, () => {
-          // Create alarm for expiry
           chrome.alarms.create(`tempFocus_${domain}`, { delayInMinutes: Math.max(minutes, 1) });
           showActivePass(domain, expiresAt);
         });
       });
     });
+  });
+
+  // Custom timer
+  customBtn.addEventListener('click', async () => {
+    const minutes = parseInt(customMinInput.value);
+    if (!minutes || minutes <= 0) return;
+    const domain = await getCurrentDomain();
+    if (!domain) return;
+
+    chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+      const passes = data.tempFocusPasses || {};
+      const expiresAt = Date.now() + (minutes * 60 * 1000);
+      passes[domain] = { expiresAt, minutes };
+      chrome.storage.local.set({ tempFocusPasses: passes }, () => {
+        chrome.alarms.create(`tempFocus_${domain}`, { delayInMinutes: Math.max(minutes, 1) });
+        showActivePass(domain, expiresAt);
+        customMinInput.value = '';
+      });
+    });
+  });
+
+  customMinInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') customBtn.click();
   });
 
   // Cancel

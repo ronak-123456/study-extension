@@ -916,6 +916,34 @@
       color: #0a1413;
     }
 
+    .temp-focus-custom {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .temp-focus-custom input {
+      flex: 1;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      background: transparent;
+      outline: none;
+      text-align: center;
+    }
+
+    .temp-focus-custom input:focus {
+      border-color: var(--primary);
+    }
+
+    .temp-focus-custom-btn {
+      padding: 7px 14px !important;
+      flex: none !important;
+    }
+
     .temp-focus-active {
       display: flex;
       align-items: center;
@@ -1060,6 +1088,10 @@
           <button class="temp-focus-dur-btn" data-minutes="10">10m</button>
           <button class="temp-focus-dur-btn" data-minutes="15">15m</button>
           <button class="temp-focus-dur-btn" data-minutes="30">30m</button>
+        </div>
+        <div class="temp-focus-custom">
+          <input type="number" id="tempFocusCustomMin" placeholder="min" min="1" max="120" value="">
+          <button id="tempFocusCustomBtn" class="temp-focus-dur-btn temp-focus-custom-btn">Set</button>
         </div>
       </div>
       <div id="tempFocusActive" class="temp-focus-active" style="display:none;">
