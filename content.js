@@ -1,11 +1,12 @@
-if (window._hocusFocusLoaded) { /* skip */ } else { window._hocusFocusLoaded = true;
+if (window._hocusFocusLoaded) { /* skip */ } else {
+  window._hocusFocusLoaded = true;
 
-console.log('Hocus Focus: Content script loaded');
+  console.log('Hocus Focus: Content script loaded');
 
-// =============================================
-// Shared Styles
-// =============================================
-const SHARED_STYLES = `
+  // =============================================
+  // Shared Styles
+  // =============================================
+  const SHARED_STYLES = `
   .ff-notification-container {
     position: fixed;
     top: 24px;
@@ -110,162 +111,190 @@ const SHARED_STYLES = `
   }
 `;
 
-// =============================================
-// Initial Focus Nudge (on first switch to distraction)
-// =============================================
-function createNudgeModal(domain, customMessage) {
-  removeExisting();
+  // =============================================
+  // Initial Focus Nudge (on first switch to distraction)
+  // =============================================
+  function createNudgeModal(domain, customMessage) {
+    removeExisting();
 
-  const container = document.createElement('div');
-  container.id = 'hocus-focus-nudge-container';
-  container.className = 'ff-notification-container';
+    const container = document.createElement('div');
+    container.id = 'hocus-focus-nudge-container';
+    container.className = 'ff-notification-container';
 
-  const style = document.createElement('style');
-  style.textContent = SHARED_STYLES + `
+    const style = document.createElement('style');
+    style.textContent = SHARED_STYLES + `
     #ff-nudge-card {
-      background: #1a1a2e;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-      padding: 20px 24px;
-      gap: 12px;
+      background: linear-gradient(135deg, #0f2922 0%, #0a1f1a 100%);
+      border: 1px solid rgba(106, 191, 155, 0.25);
+      box-shadow: 0 24px 80px rgba(10, 31, 26, 0.6), 0 0 40px rgba(106, 191, 155, 0.08);
+      padding: 28px 28px 24px;
+      gap: 16px;
+      width: 360px;
+      border-radius: 16px;
     }
 
     #ff-nudge-card .ff-nudge-top {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       width: 100%;
     }
 
     #ff-nudge-card .ff-nudge-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6abf9b, #57ae8b);
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(106, 191, 155, 0.3);
     }
 
     #ff-nudge-card .ff-nudge-icon svg {
-      width: 18px;
-      height: 18px;
-      stroke: #1a1a2e;
-      stroke-width: 2.5;
+      width: 22px;
+      height: 22px;
+      stroke: #ffffff;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
       fill: none;
     }
 
+    #ff-nudge-card .ff-nudge-text {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
     #ff-nudge-card .ff-title {
-      font-size: 14px;
+      font-size: 17px;
       font-weight: 700;
-      color: #ffffff;
+      color: #f1f5f9;
       background: none;
       -webkit-text-fill-color: unset;
       margin: 0;
+      letter-spacing: -0.3px;
+    }
+
+    #ff-nudge-card .ff-subtitle {
+      font-size: 12px;
+      color: rgba(106, 191, 155, 0.7);
+      font-weight: 500;
     }
 
     #ff-nudge-card .ff-message {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.7);
-      line-height: 1.5;
+      font-size: 15px;
+      color: #a0cec4;
+      line-height: 1.7;
       text-align: left;
       width: 100%;
+      padding: 4px 0;
+    }
+
+    #ff-nudge-card .ff-message strong {
+      color: #e2f5ef;
     }
 
     #ff-nudge-card .ff-btn-row {
       width: 100%;
       display: flex;
-      gap: 8px;
-      margin-top: 4px;
+      gap: 10px;
+      margin-top: 8px;
     }
 
     #ff-nudge-card .ff-btn-primary {
       flex: 1;
-      background: #fbbf24;
-      color: #1a1a2e;
+      background: linear-gradient(135deg, #6abf9b, #57ae8b);
+      color: #0a1f1a;
       font-weight: 700;
-      font-size: 12px;
-      padding: 10px 16px;
-      border-radius: 8px;
+      font-size: 14px;
+      padding: 13px 20px;
+      border-radius: 10px;
       border: none;
       cursor: pointer;
       transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(106, 191, 155, 0.3);
+      letter-spacing: -0.2px;
     }
 
     #ff-nudge-card .ff-btn-primary:hover {
-      background: #f59e0b;
       transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(106, 191, 155, 0.4);
     }
 
     #ff-nudge-card .ff-btn-dismiss {
-      background: rgba(255, 255, 255, 0.06);
-      color: rgba(255, 255, 255, 0.5);
+      background: rgba(106, 191, 155, 0.08);
+      color: #6abf9b;
       font-weight: 600;
-      font-size: 12px;
-      padding: 10px 16px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 14px;
+      padding: 13px 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(106, 191, 155, 0.2);
       cursor: pointer;
       transition: all 0.2s;
     }
 
     #ff-nudge-card .ff-btn-dismiss:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: rgba(255, 255, 255, 0.8);
+      background: rgba(106, 191, 155, 0.15);
+      border-color: rgba(106, 191, 155, 0.35);
     }
   `;
 
-  const card = document.createElement('div');
-  card.id = 'ff-nudge-card';
-  card.className = 'ff-notification-card';
-  card.style.alignItems = 'flex-start';
-  card.innerHTML = `
+    const card = document.createElement('div');
+    card.id = 'ff-nudge-card';
+    card.className = 'ff-notification-card';
+    card.style.alignItems = 'flex-start';
+    card.innerHTML = `
     <div class="ff-nudge-top">
       <div class="ff-nudge-icon">
-        <svg viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       </div>
-      <h3 class="ff-title">You're off track</h3>
+      <div class="ff-nudge-text">
+        <h3 class="ff-title">You're off track</h3>
+        <span class="ff-subtitle">Hocus Focus</span>
+      </div>
     </div>
     <p class="ff-message">${customMessage || `You wandered onto <strong>${domain}</strong>. Time to get back to work.`}</p>
     <div class="ff-btn-row">
-      <button class="ff-btn-primary">Back to work</button>
-      <button class="ff-btn-dismiss">Dismiss</button>
+      <button class="ff-btn-primary">Exit This Site</button>
+      <button class="ff-btn-dismiss">Stay A Little More</button>
     </div>
   `;
 
-  card.querySelector('.ff-btn-primary').onclick = () => {
-    dismissNotification(container);
-    if (window.history.length > 1) window.history.back();
-    else window.close();
-  };
-  card.querySelector('.ff-btn-dismiss').onclick = () => dismissNotification(container);
+    card.querySelector('.ff-btn-primary').onclick = () => {
+      dismissNotification(container);
+      if (window.history.length > 1) window.history.back();
+      else window.close();
+    };
+    card.querySelector('.ff-btn-dismiss').onclick = () => dismissNotification(container);
 
-  container.appendChild(style);
-  container.appendChild(card);
-  document.body.appendChild(container);
-  autoRemove(container, 10000);
-}
+    container.appendChild(style);
+    container.appendChild(card);
+    document.body.appendChild(container);
+    autoRemove(container, 10000);
+  }
 
-// =============================================
-// Graduated Distraction Block (every 10 min)
-// =============================================
-function createDistractionBlock(domain, minutes, message, severity) {
-  removeExisting();
+  // =============================================
+  // Graduated Distraction Block (every 10 min)
+  // =============================================
+  function createDistractionBlock(domain, minutes, message, severity) {
+    removeExisting();
 
-  const container = document.createElement('div');
-  container.id = 'hocus-focus-nudge-container';
-  container.className = 'ff-notification-container';
+    const container = document.createElement('div');
+    container.id = 'hocus-focus-nudge-container';
+    container.className = 'ff-notification-container';
 
-  const colors = {
-    low: { bg: 'rgba(255, 251, 235, 0.95)', border: '#fbbf24', accent: '#f59e0b', shadow: 'rgba(245, 158, 11, 0.15)' },
-    medium: { bg: 'rgba(255, 243, 235, 0.95)', border: '#fb923c', accent: '#ea580c', shadow: 'rgba(234, 88, 12, 0.15)' },
-    high: { bg: 'rgba(254, 235, 235, 0.95)', border: '#f87171', accent: '#dc2626', shadow: 'rgba(220, 38, 38, 0.15)' }
-  };
-  const c = colors[severity] || colors.low;
+    const colors = {
+      low: { bg: 'rgba(255, 251, 235, 0.95)', border: '#fbbf24', accent: '#f59e0b', shadow: 'rgba(245, 158, 11, 0.15)' },
+      medium: { bg: 'rgba(255, 243, 235, 0.95)', border: '#fb923c', accent: '#ea580c', shadow: 'rgba(234, 88, 12, 0.15)' },
+      high: { bg: 'rgba(254, 235, 235, 0.95)', border: '#f87171', accent: '#dc2626', shadow: 'rgba(220, 38, 38, 0.15)' }
+    };
+    const c = colors[severity] || colors.low;
 
-  const style = document.createElement('style');
-  style.textContent = SHARED_STYLES + `
+    const style = document.createElement('style');
+    style.textContent = SHARED_STYLES + `
     #ff-distraction-card {
       background: ${c.bg};
       border: 1.5px solid ${c.border};
@@ -313,13 +342,13 @@ function createDistractionBlock(domain, minutes, message, severity) {
     }
   `;
 
-  const emoji = severity === 'high' ? '🚨' : severity === 'medium' ? '⚠️' : '⏰';
-  const title = severity === 'high' ? 'Seriously, Close This!' : severity === 'medium' ? 'Still Distracted?' : 'Time Check!';
+    const emoji = severity === 'high' ? '🚨' : severity === 'medium' ? '⚠️' : '⏰';
+    const title = severity === 'high' ? 'Seriously, Close This!' : severity === 'medium' ? 'Still Distracted?' : 'Time Check!';
 
-  const card = document.createElement('div');
-  card.id = 'ff-distraction-card';
-  card.className = 'ff-notification-card';
-  card.innerHTML = `
+    const card = document.createElement('div');
+    card.id = 'ff-distraction-card';
+    card.className = 'ff-notification-card';
+    card.innerHTML = `
     <div class="ff-logo-wrap">
       <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Hocus Focus">
     </div>
@@ -332,40 +361,40 @@ function createDistractionBlock(domain, minutes, message, severity) {
     </div>
   `;
 
-  card.querySelector('.ff-btn-leave').onclick = () => {
-    dismissNotification(container);
-    // Try to go back or close
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      window.close();
+    card.querySelector('.ff-btn-leave').onclick = () => {
+      dismissNotification(container);
+      // Try to go back or close
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.close();
+      }
+    };
+
+    card.querySelector('.ff-btn-continue').onclick = () => dismissNotification(container);
+
+    container.appendChild(style);
+    container.appendChild(card);
+    document.body.appendChild(container);
+
+    // High severity: don't auto-remove, make them click
+    if (severity !== 'high') {
+      autoRemove(container, 20000);
     }
-  };
-
-  card.querySelector('.ff-btn-continue').onclick = () => dismissNotification(container);
-
-  container.appendChild(style);
-  container.appendChild(card);
-  document.body.appendChild(container);
-
-  // High severity: don't auto-remove, make them click
-  if (severity !== 'high') {
-    autoRemove(container, 20000);
   }
-}
 
-// =============================================
-// Study Encouragement (milestones)
-// =============================================
-function createStudyEncouragement(domain, minutes, message) {
-  removeExisting();
+  // =============================================
+  // Study Encouragement (milestones)
+  // =============================================
+  function createStudyEncouragement(domain, minutes, message) {
+    removeExisting();
 
-  const container = document.createElement('div');
-  container.id = 'hocus-focus-nudge-container';
-  container.className = 'ff-notification-container';
+    const container = document.createElement('div');
+    container.id = 'hocus-focus-nudge-container';
+    container.className = 'ff-notification-container';
 
-  const style = document.createElement('style');
-  style.textContent = SHARED_STYLES + `
+    const style = document.createElement('style');
+    style.textContent = SHARED_STYLES + `
     #ff-study-card {
       background: rgba(236, 253, 245, 0.95);
       border: 1.5px solid #6ee7b7;
@@ -411,12 +440,12 @@ function createStudyEncouragement(domain, minutes, message) {
     }
   `;
 
-  const timeLabel = minutes >= 60 ? `${Math.floor(minutes / 60)}h${minutes % 60 > 0 ? ` ${minutes % 60}m` : ''}` : `${minutes}m`;
+    const timeLabel = minutes >= 60 ? `${Math.floor(minutes / 60)}h${minutes % 60 > 0 ? ` ${minutes % 60}m` : ''}` : `${minutes}m`;
 
-  const card = document.createElement('div');
-  card.id = 'ff-study-card';
-  card.className = 'ff-notification-card ff-celebration';
-  card.innerHTML = `
+    const card = document.createElement('div');
+    card.id = 'ff-study-card';
+    card.className = 'ff-notification-card ff-celebration';
+    card.innerHTML = `
     <div class="ff-logo-wrap">
       <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Hocus Focus">
     </div>
@@ -426,70 +455,70 @@ function createStudyEncouragement(domain, minutes, message) {
     <button class="ff-btn ff-btn-primary">Keep Going! 🚀</button>
   `;
 
-  card.querySelector('.ff-btn-primary').onclick = () => dismissNotification(container);
+    card.querySelector('.ff-btn-primary').onclick = () => dismissNotification(container);
 
-  container.appendChild(style);
-  container.appendChild(card);
-  document.body.appendChild(container);
-  autoRemove(container, 8000);
-}
-
-// =============================================
-// Helpers
-// =============================================
-function removeExisting() {
-  const existing = document.getElementById('hocus-focus-nudge-container');
-  if (existing) existing.remove();
-}
-
-function dismissNotification(container) {
-  const card = container.querySelector('.ff-notification-card');
-  if (card) {
-    card.style.animation = 'ffSlideOut 0.3s ease-in forwards';
-    setTimeout(() => container.remove(), 300);
-  } else {
-    container.remove();
+    container.appendChild(style);
+    container.appendChild(card);
+    document.body.appendChild(container);
+    autoRemove(container, 8000);
   }
-}
 
-function autoRemove(container, ms) {
-  setTimeout(() => {
-    if (container.parentNode) {
-      dismissNotification(container);
+  // =============================================
+  // Helpers
+  // =============================================
+  function removeExisting() {
+    const existing = document.getElementById('hocus-focus-nudge-container');
+    if (existing) existing.remove();
+  }
+
+  function dismissNotification(container) {
+    const card = container.querySelector('.ff-notification-card');
+    if (card) {
+      card.style.animation = 'ffSlideOut 0.3s ease-in forwards';
+      setTimeout(() => container.remove(), 300);
+    } else {
+      container.remove();
     }
-  }, ms);
-}
-
-// =============================================
-// Allowance Countdown Notification
-// =============================================
-function createAllowanceCountdown(domain, remainingSeconds, limitSeconds, level) {
-  removeExisting();
-
-  const container = document.createElement('div');
-  container.id = 'hocus-focus-nudge-container';
-  container.className = 'ff-notification-container';
-
-  const isExceeded = level === 'exceeded';
-  const isCritical = level === 'critical';
-  const borderColor = isExceeded ? '#dc2626' : isCritical ? '#f59e0b' : '#3b82f6';
-  const bgColor = isExceeded ? 'rgba(254, 226, 226, 0.97)' : isCritical ? 'rgba(255, 251, 235, 0.97)' : 'rgba(239, 246, 255, 0.97)';
-  const textColor = isExceeded ? '#991b1b' : isCritical ? '#92400e' : '#1e40af';
-
-  const limitMin = Math.floor(limitSeconds / 60);
-  const limitStr = limitMin >= 60 ? `${Math.floor(limitMin/60)}h${limitMin%60 > 0 ? ` ${limitMin%60}m` : ''}` : `${limitMin}m`;
-
-  let countdownText;
-  if (isExceeded) {
-    countdownText = 'Time\'s up!';
-  } else if (remainingSeconds < 60) {
-    countdownText = `${remainingSeconds}s left`;
-  } else {
-    countdownText = `${Math.ceil(remainingSeconds / 60)}m left`;
   }
 
-  const style = document.createElement('style');
-  style.textContent = SHARED_STYLES + `
+  function autoRemove(container, ms) {
+    setTimeout(() => {
+      if (container.parentNode) {
+        dismissNotification(container);
+      }
+    }, ms);
+  }
+
+  // =============================================
+  // Allowance Countdown Notification
+  // =============================================
+  function createAllowanceCountdown(domain, remainingSeconds, limitSeconds, level) {
+    removeExisting();
+
+    const container = document.createElement('div');
+    container.id = 'hocus-focus-nudge-container';
+    container.className = 'ff-notification-container';
+
+    const isExceeded = level === 'exceeded';
+    const isCritical = level === 'critical';
+    const borderColor = isExceeded ? '#dc2626' : isCritical ? '#f59e0b' : '#3b82f6';
+    const bgColor = isExceeded ? 'rgba(254, 226, 226, 0.97)' : isCritical ? 'rgba(255, 251, 235, 0.97)' : 'rgba(239, 246, 255, 0.97)';
+    const textColor = isExceeded ? '#991b1b' : isCritical ? '#92400e' : '#1e40af';
+
+    const limitMin = Math.floor(limitSeconds / 60);
+    const limitStr = limitMin >= 60 ? `${Math.floor(limitMin / 60)}h${limitMin % 60 > 0 ? ` ${limitMin % 60}m` : ''}` : `${limitMin}m`;
+
+    let countdownText;
+    if (isExceeded) {
+      countdownText = 'Time\'s up!';
+    } else if (remainingSeconds < 60) {
+      countdownText = `${remainingSeconds}s left`;
+    } else {
+      countdownText = `${Math.ceil(remainingSeconds / 60)}m left`;
+    }
+
+    const style = document.createElement('style');
+    style.textContent = SHARED_STYLES + `
     #ff-allowance-card {
       background: ${bgColor};
       border: 2px solid ${borderColor};
@@ -523,13 +552,13 @@ function createAllowanceCountdown(domain, remainingSeconds, limitSeconds, level)
     #ff-allowance-card .ff-btn-continue:hover { background: ${borderColor}0d; }
   `;
 
-  const emoji = isExceeded ? '🚫' : isCritical ? '⚠️' : '⏱️';
-  const title = isExceeded ? 'Allowance Used Up!' : isCritical ? 'Almost Out of Time!' : 'Allowance Running Low';
+    const emoji = isExceeded ? '🚫' : isCritical ? '⚠️' : '⏱️';
+    const title = isExceeded ? 'Allowance Used Up!' : isCritical ? 'Almost Out of Time!' : 'Allowance Running Low';
 
-  const card = document.createElement('div');
-  card.id = 'ff-allowance-card';
-  card.className = 'ff-notification-card';
-  card.innerHTML = `
+    const card = document.createElement('div');
+    card.id = 'ff-allowance-card';
+    card.className = 'ff-notification-card';
+    card.innerHTML = `
     <span class="ff-countdown">${countdownText}</span>
     <span class="ff-limit-label">${domain.replace('www.', '')} — ${limitStr}/day limit</span>
     <h3 class="ff-title">${emoji} ${title}</h3>
@@ -540,38 +569,38 @@ function createAllowanceCountdown(domain, remainingSeconds, limitSeconds, level)
     </div>
   `;
 
-  card.querySelector('.ff-btn-leave').onclick = () => {
-    dismissNotification(container);
-    if (window.history.length > 1) window.history.back();
-    else window.close();
-  };
+    card.querySelector('.ff-btn-leave').onclick = () => {
+      dismissNotification(container);
+      if (window.history.length > 1) window.history.back();
+      else window.close();
+    };
 
-  const continueBtn = card.querySelector('.ff-btn-continue');
-  if (continueBtn) continueBtn.onclick = () => dismissNotification(container);
+    const continueBtn = card.querySelector('.ff-btn-continue');
+    if (continueBtn) continueBtn.onclick = () => dismissNotification(container);
 
-  container.appendChild(style);
-  container.appendChild(card);
-  document.body.appendChild(container);
+    container.appendChild(style);
+    container.appendChild(card);
+    document.body.appendChild(container);
 
-  // Exceeded doesn't auto-dismiss
-  if (!isExceeded) autoRemove(container, 15000);
-}
+    // Exceeded doesn't auto-dismiss
+    if (!isExceeded) autoRemove(container, 15000);
+  }
 
-// =============================================
-// Message Listener
-// =============================================
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'showFocusNudge') {
-    createNudgeModal(request.domain, request.customMessage);
-  }
-  if (request.action === 'showDistractionBlock') {
-    createDistractionBlock(request.domain, request.minutes, request.message, request.severity);
-  }
-  if (request.action === 'showStudyEncouragement') {
-    createStudyEncouragement(request.domain, request.minutes, request.message);
-  }
-  if (request.action === 'showAllowanceCountdown') {
-    createAllowanceCountdown(request.domain, request.remainingSeconds, request.limitSeconds, request.level);
-  }
-});
+  // =============================================
+  // Message Listener
+  // =============================================
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'showFocusNudge') {
+      createNudgeModal(request.domain, request.customMessage);
+    }
+    if (request.action === 'showDistractionBlock') {
+      createDistractionBlock(request.domain, request.minutes, request.message, request.severity);
+    }
+    if (request.action === 'showStudyEncouragement') {
+      createStudyEncouragement(request.domain, request.minutes, request.message);
+    }
+    if (request.action === 'showAllowanceCountdown') {
+      createAllowanceCountdown(request.domain, request.remainingSeconds, request.limitSeconds, request.level);
+    }
+  });
 } // end _hocusFocusLoaded guard
