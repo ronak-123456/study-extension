@@ -1417,3 +1417,92 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ============================================
+// Tasks Dashboard
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+    const taskInput = document.getElementById('dashTaskInput');
+    const addBtn = document.getElementById('dashAddTaskBtn');
+    const taskList = document.getElementById('dashTaskList');
+    const countEl = document.getElementById('dashTasksCount');
+
+    function loadTasks() {
+        chrome.storage.local.get({ tasks: [] }, (data) => {
+            renderTasks(data.tasks);
+        });
+    }
+
+    function saveTasks(tasks) {
+        chrome.storage.local.set({ tasks }, () => renderTasks(tasks));
+    }
+
+    function renderTasks(tasks) {
+        taskList.innerHTML = '';
+        const done = tasks.filter(t => t.done).length;
+        countEl.textContent = `${done}/${tasks.length} completed`;
+
+        if (tasks.length === 0) {
+            taskList.innerHTML = '<li class="tasks-dash-empty">No tasks yet. Add one above!</li>';
+            return;
+        }
+
+        tasks.forEach((task, i) => {
+            const li = document.createElement('li');
+            li.className = `tasks-dash-item ${task.done ? 'done' : ''}`;
+            li.innerHTML = `
+                <div class="tasks-dash-checkbox ${task.done ? 'checked' : ''}" data-index="${i}">
+                    <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+                <span class="tasks-dash-text">${escapeHtml(task.text)}</span>
+                <button class="tasks-dash-delete" data-index="${i}">&times;</button>
+            `;
+            taskList.appendChild(li);
+        });
+
+        // Checkbox
+        taskList.querySelectorAll('.tasks-dash-checkbox').forEach(cb => {
+            cb.addEventListener('click', () => {
+                const idx = parseInt(cb.dataset.index);
+                chrome.storage.local.get({ tasks: [] }, (data) => {
+                    data.tasks[idx].done = !data.tasks[idx].done;
+                    saveTasks(data.tasks);
+                });
+            });
+        });
+
+        // Delete
+        taskList.querySelectorAll('.tasks-dash-delete').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.dataset.index);
+                chrome.storage.local.get({ tasks: [] }, (data) => {
+                    data.tasks.splice(idx, 1);
+                    saveTasks(data.tasks);
+                });
+            });
+        });
+    }
+
+    function addTask() {
+        const text = taskInput.value.trim();
+        if (!text) return;
+        chrome.storage.local.get({ tasks: [] }, (data) => {
+            data.tasks.push({ text, done: false, createdAt: Date.now() });
+            saveTasks(data.tasks);
+            taskInput.value = '';
+        });
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    addBtn.addEventListener('click', addTask);
+    taskInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addTask();
+    });
+
+    loadTasks();
+});

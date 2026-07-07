@@ -1067,8 +1067,165 @@
       background: var(--danger);
       color: #fff;
     }
+
+    /* Tasks Section */
+    .tasks-section {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .tasks-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .tasks-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0;
+    }
+
+    .tasks-count {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .tasks-add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .tasks-add-row input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: transparent;
+      outline: none;
+    }
+
+    .tasks-add-row input:focus {
+      border-color: var(--primary);
+    }
+
+    .tasks-add-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    body.dark .tasks-add-btn {
+      color: #0a1413;
+    }
+
+    .tasks-add-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(106, 191, 155, 0.3);
+    }
+
+    .task-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .task-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .task-list::-webkit-scrollbar-thumb {
+      background: var(--muted);
+      border-radius: 4px;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+
+    .task-item:hover {
+      background: var(--primary-soft);
+    }
+
+    .task-checkbox {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .task-checkbox.checked {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .task-checkbox.checked::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .task-text {
+      font-size: 12px;
+      color: var(--text);
+      flex: 1;
+      word-break: break-word;
+    }
+
+    .task-item.done .task-text {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+
+    .task-delete {
+      opacity: 0;
+      border: none;
+      background: none;
+      color: var(--danger);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: opacity 0.2s;
+    }
+
+    .task-item:hover .task-delete {
+      opacity: 1;
+    }
+
   </style>
-</head>
 
 <body>
   <div class="popup">
@@ -1224,6 +1381,19 @@
       <div class="pomo-sessions">
         <span id="pomoSessions">0</span> sessions completed
       </div>
+    </div>
+
+    <!-- Tasks -->
+    <div class="tasks-section">
+      <div class="tasks-header">
+        <h3 class="tasks-title">Tasks</h3>
+        <span class="tasks-count" id="tasksCount">0/0</span>
+      </div>
+      <div class="tasks-add-row">
+        <input type="text" id="taskInput" placeholder="Add a task..." autocomplete="off">
+        <button id="addTaskBtn" class="tasks-add-btn">+</button>
+      </div>
+      <ul id="taskList" class="task-list"></ul>
     </div>
   </div>
 

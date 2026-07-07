@@ -648,3 +648,88 @@ document.addEventListener('DOMContentLoaded', () => {
 
   checkActivePass();
 })();
+
+// Tasks
+(function() {
+  const taskInput = document.getElementById('taskInput');
+  const addTaskBtn = document.getElementById('addTaskBtn');
+  const taskList = document.getElementById('taskList');
+  const tasksCount = document.getElementById('tasksCount');
+
+  function loadTasks() {
+    chrome.storage.local.get({ tasks: [] }, (data) => {
+      renderTasks(data.tasks);
+    });
+  }
+
+  function saveTasks(tasks) {
+    chrome.storage.local.set({ tasks }, () => renderTasks(tasks));
+  }
+
+  function renderTasks(tasks) {
+    taskList.innerHTML = '';
+    const done = tasks.filter(t => t.done).length;
+    tasksCount.textContent = `${done}/${tasks.length}`;
+
+    if (tasks.length === 0) {
+      taskList.innerHTML = '<li style="padding:10px;text-align:center;font-size:11px;color:var(--muted);font-style:italic;">No tasks yet</li>';
+      return;
+    }
+
+    tasks.forEach((task, i) => {
+      const li = document.createElement('li');
+      li.className = `task-item ${task.done ? 'done' : ''}`;
+      li.innerHTML = `
+        <div class="task-checkbox ${task.done ? 'checked' : ''}" data-index="${i}"></div>
+        <span class="task-text">${escapeHtml(task.text)}</span>
+        <button class="task-delete" data-index="${i}">&times;</button>
+      `;
+      taskList.appendChild(li);
+    });
+
+    // Checkbox click
+    taskList.querySelectorAll('.task-checkbox').forEach(cb => {
+      cb.addEventListener('click', () => {
+        const idx = parseInt(cb.dataset.index);
+        chrome.storage.local.get({ tasks: [] }, (data) => {
+          data.tasks[idx].done = !data.tasks[idx].done;
+          saveTasks(data.tasks);
+        });
+      });
+    });
+
+    // Delete click
+    taskList.querySelectorAll('.task-delete').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.index);
+        chrome.storage.local.get({ tasks: [] }, (data) => {
+          data.tasks.splice(idx, 1);
+          saveTasks(data.tasks);
+        });
+      });
+    });
+  }
+
+  function addTask() {
+    const text = taskInput.value.trim();
+    if (!text) return;
+    chrome.storage.local.get({ tasks: [] }, (data) => {
+      data.tasks.push({ text, done: false, createdAt: Date.now() });
+      saveTasks(data.tasks);
+      taskInput.value = '';
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  addTaskBtn.addEventListener('click', addTask);
+  taskInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addTask();
+  });
+
+  loadTasks();
+})();
