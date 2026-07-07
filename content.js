@@ -1,3 +1,5 @@
+if (window._hocusFocusLoaded) { /* already loaded */ } else {
+window._hocusFocusLoaded = true;
 console.log('Hocus Focus: Content script loaded');
 
 // =============================================
@@ -495,3 +497,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     createAllowanceCountdown(request.domain, request.remainingSeconds, request.limitSeconds, request.level);
   }
 });
+} // end _hocusFocusLoaded guard

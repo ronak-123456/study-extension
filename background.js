@@ -36,7 +36,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 function updateBadge() {
-  if (!isEnabled || !activeStartTime) {
+  if (!isEnabled || !activeStartTime || !activeDomain) {
     chrome.action.setBadgeText({ text: '' });
     return;
   }
