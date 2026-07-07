@@ -944,6 +944,78 @@
       flex: none !important;
     }
 
+    /* First Time Tip */
+    .first-time-tip {
+      margin: 12px 0;
+      padding: 14px 16px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary);
+      border-radius: 12px;
+      animation: tipFadeIn 0.3s ease;
+    }
+
+    @keyframes tipFadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .tip-header {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary-strong);
+      margin-bottom: 8px;
+    }
+
+    .tip-list {
+      margin: 0;
+      padding: 0 0 0 16px;
+      list-style: none;
+    }
+
+    .tip-list li {
+      font-size: 11px;
+      color: var(--text);
+      line-height: 1.6;
+      margin-bottom: 6px;
+      position: relative;
+      padding-left: 4px;
+    }
+
+    .tip-list li::before {
+      content: '•';
+      position: absolute;
+      left: -12px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .tip-list li strong {
+      color: var(--primary-strong);
+    }
+
+    .tip-dismiss {
+      margin-top: 10px;
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    body.dark .tip-dismiss {
+      color: #0a1413;
+    }
+
+    .tip-dismiss:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
     .temp-focus-active {
       display: flex;
       align-items: center;

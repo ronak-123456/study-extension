@@ -124,6 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.storage.local.set({ studyDomains: currentList }, () => {
         renderList(currentList);
         setStatus(fromCurrent ? 'Current website added.' : 'Domain added.', 'success');
+
+        // Show first-time tip when first domain is added
+        if (currentList.length === 1) {
+          showFirstTimeTip();
+        }
       });
     });
   }
@@ -178,6 +183,31 @@ document.addEventListener('DOMContentLoaded', () => {
       status.textContent = '';
       status.className = '';
     }, 2200);
+  }
+
+  function showFirstTimeTip() {
+    // Only show once
+    chrome.storage.local.get({ firstTipShown: false }, (data) => {
+      if (data.firstTipShown) return;
+      chrome.storage.local.set({ firstTipShown: true });
+
+      const tip = document.createElement('div');
+      tip.className = 'first-time-tip';
+      tip.innerHTML = `
+        <div class="tip-header">How it works</div>
+        <ul class="tip-list">
+          <li><strong>Browse normally</strong> — time on study sites counts as deep work, everything else is distraction.</li>
+          <li><strong>Badge timer</strong> — the icon shows how long you've been on the current site. Green = focus, Red = distraction.</li>
+          <li><strong>Get nudged</strong> — you'll get a reminder every time you open a non-study site.</li>
+          <li><strong>Pin the extension</strong> — click the puzzle icon in Chrome toolbar, then pin Hocus Focus for quick access.</li>
+        </ul>
+        <button class="tip-dismiss">Got it</button>
+      `;
+      tip.querySelector('.tip-dismiss').onclick = () => tip.remove();
+
+      const popup = document.querySelector('.popup');
+      popup.insertBefore(tip, popup.children[2]);
+    });
   }
 });
 
