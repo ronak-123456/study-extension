@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (domains.length === 0) {
       const li = document.createElement('li');
       li.className = 'empty';
-      li.textContent = 'No study domains added yet.';
+      li.textContent = 'No focus domains added yet.';
       domainList.appendChild(li);
       return;
     }
@@ -196,9 +196,9 @@ document.addEventListener('DOMContentLoaded', () => {
       tip.innerHTML = `
         <div class="tip-header">How it works</div>
         <ul class="tip-list">
-          <li><strong>Browse normally</strong> — time on study sites counts as deep work, everything else is distraction.</li>
+          <li><strong>Browse normally</strong> — time on focus sites counts as deep work, everything else is distraction.</li>
           <li><strong>Badge timer</strong> — the icon shows how long you've been on the current site. Green = focus, Red = distraction.</li>
-          <li><strong>Get nudged</strong> — you'll get a reminder every time you open a non-study site.</li>
+          <li><strong>Get nudged</strong> — you'll get a reminder every time you open a non-focus site.</li>
           <li><strong>Pin the extension</strong> — click the puzzle icon in Chrome toolbar, then pin Hocus Focus for quick access.</li>
         </ul>
         <button class="tip-dismiss">Got it</button>
