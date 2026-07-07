@@ -55,6 +55,8 @@ function updateBadge() {
 
   // Update periodic reminder if on distraction
   chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {}, tempFocusPasses: {} }, (data) => {
+    if (!activeDomain) return;
+
     let isStudy = data.studyDomains.some(
       (allowedDomain) =>
         activeDomain === allowedDomain || activeDomain.endsWith(`.${allowedDomain}`)
