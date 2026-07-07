@@ -459,7 +459,7 @@ function createAllowanceCountdown(domain, remainingSeconds, limitSeconds, level)
     <p class="ff-message">${isExceeded ? 'Your daily allowance is finished. Close this tab to stay on track!' : 'Wrap up what you\'re doing — time is almost up.'}</p>
     <div class="ff-btn-row">
       <button class="ff-btn ff-btn-leave">Leave Now 🎯</button>
-      ${!isExceeded ? '<button class="ff-btn ff-btn-continue">OK</button>' : ''}
+      <button class="ff-btn ff-btn-continue">${isExceeded ? 'Stay Anyway' : 'OK'}</button>
     </div>
   `;
 
