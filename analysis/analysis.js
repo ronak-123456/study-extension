@@ -322,6 +322,9 @@ function updateDashboard() {
             renderChart(topForChart);
         }
 
+        // Focus vs Distraction Chart
+        renderFocusVsDistractionChart(focusSeconds, distractionSeconds);
+
         // Detailed Table
         updateDetailedTable(urlStats, datesToProcess);
 
@@ -607,6 +610,91 @@ function renderChart(siteData) {
 
     myChart = new ApexCharts(chartElement, options);
     myChart.render();
+}
+
+let focusDistChart = null;
+function renderFocusVsDistractionChart(focusSec, distractionSec) {
+    const isDark = document.body.classList.contains('dark');
+    const chartElement = document.querySelector("#focusVsDistractionChart");
+    if (!chartElement) return;
+
+    const series = [focusSec, distractionSec];
+    const labels = ['Deep Work', 'Distracted'];
+    const colors = [isDark ? '#2dd4bf' : '#14b8a6', isDark ? '#fbbf24' : '#f59e0b'];
+
+    const options = {
+        series: series,
+        chart: {
+            type: 'donut',
+            height: '100%',
+            animations: { enabled: true, easing: 'easeinout', speed: 800 },
+            fontFamily: 'Outfit, sans-serif'
+        },
+        labels: labels,
+        colors: colors,
+        stroke: { show: false },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '75%',
+                    labels: {
+                        show: true,
+                        name: {
+                            show: true,
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            color: isDark ? '#94a3b8' : '#64748b',
+                            offsetY: -10
+                        },
+                        value: {
+                            show: true,
+                            fontSize: '24px',
+                            fontWeight: 800,
+                            color: isDark ? '#f8fafc' : '#0f172a',
+                            offsetY: 10,
+                            formatter: (val) => formatTime(val)
+                        },
+                        total: {
+                            show: true,
+                            label: 'Focus Score',
+                            color: isDark ? '#94a3b8' : '#64748b',
+                            formatter: function (w) {
+                                const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
+                                const score = total > 0 ? Math.round((w.globals.seriesTotals[0] / total) * 100) : 0;
+                                return score + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        legend: {
+            show: true,
+            position: 'bottom',
+            horizontalAlign: 'center',
+            fontSize: '13px',
+            fontWeight: 500,
+            labels: { colors: isDark ? '#94a3b8' : '#64748b' },
+            markers: { radius: 12, width: 10, height: 10 },
+            itemMargin: { horizontal: 12, vertical: 4 }
+        },
+        dataLabels: { enabled: false },
+        tooltip: {
+            theme: isDark ? 'dark' : 'light',
+            y: { formatter: (val) => formatTime(val) }
+        },
+        responsive: [{
+            breakpoint: 480,
+            options: { chart: { height: 300 }, legend: { position: 'bottom' } }
+        }]
+    };
+
+    if (focusDistChart) {
+        focusDistChart.destroy();
+    }
+
+    focusDistChart = new ApexCharts(chartElement, options);
+    focusDistChart.render();
 }
 
 function renderWeeklyBarChart(allStats, dates, studyDomains) {

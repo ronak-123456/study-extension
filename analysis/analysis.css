@@ -1337,6 +1337,8 @@ body.dark .color-swatch.selected {
 
 .motivation-header h3 {
   margin: 0 0 4px;
+  padding-left: 12px;
+  border-left: 3px solid var(--yellow);
 }
 
 .motivation-add-row {
@@ -1358,16 +1360,16 @@ body.dark .color-swatch.selected {
 
 .motivation-add-row input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.15);
 }
 
 .motivation-add-btn {
   padding: 12px 20px;
   border-radius: 10px;
   border: none;
-  background: var(--primary);
-  color: #fff;
+  background: var(--yellow);
+  color: #0f172a;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -1378,6 +1380,7 @@ body.dark .color-swatch.selected {
 .motivation-add-btn:hover {
   filter: brightness(1.1);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
 }
 
 .motivation-list {
@@ -1395,6 +1398,11 @@ body.dark .color-swatch.selected {
   border: 1px solid var(--border);
   background: var(--bg);
   gap: 12px;
+  transition: border-color 0.2s;
+}
+
+.motivation-item:hover {
+  border-color: var(--yellow);
 }
 
 .motivation-item-text {
@@ -1402,6 +1410,22 @@ body.dark .color-swatch.selected {
   color: var(--text);
   flex: 1;
   font-style: italic;
+}
+
+.motivation-item-text::before {
+  content: '"';
+  color: var(--yellow);
+  font-weight: 700;
+  font-size: 18px;
+  margin-right: 4px;
+}
+
+.motivation-item-text::after {
+  content: '"';
+  color: var(--yellow);
+  font-weight: 700;
+  font-size: 18px;
+  margin-left: 4px;
 }
 
 .motivation-item-delete {
@@ -1555,6 +1579,8 @@ body.dark .guide-step-number {
 
 .tasks-dash-header h3 {
   margin: 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--yellow);
 }
 
 .tasks-dash-count {
@@ -1589,8 +1615,8 @@ body.dark .guide-step-number {
   padding: 10px 20px;
   border: none;
   border-radius: 10px;
-  background: var(--primary);
-  color: #fff;
+  background: var(--yellow);
+  color: #0f172a;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -1603,7 +1629,7 @@ body.dark .tasks-dash-add button {
 
 .tasks-dash-add button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
+  box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
 }
 
 .tasks-dash-list {
@@ -1627,14 +1653,14 @@ body.dark .tasks-dash-add button {
 
 .tasks-dash-item:hover {
   background: var(--glass-bg);
-  border-color: var(--primary);
+  border-color: var(--yellow);
 }
 
 .tasks-dash-checkbox {
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  border: 2px solid var(--primary);
+  border: 2px solid var(--yellow);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1644,8 +1670,8 @@ body.dark .tasks-dash-add button {
 }
 
 .tasks-dash-checkbox.checked {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--yellow);
+  border-color: var(--yellow);
 }
 
 .tasks-dash-checkbox.checked svg {
