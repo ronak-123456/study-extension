@@ -115,15 +115,16 @@
 
             <section class="charts">
                 <div class="card chart-card">
-                    <h3 id="chartTitle">Usage Distribution</h3>
+                    <div class="chart-header-row">
+                        <h3 id="chartTitle">Usage Distribution</h3>
+                        <div class="chart-toggle">
+                            <button class="chart-toggle-btn active" id="chartToggleSites">Sites</button>
+                            <button class="chart-toggle-btn" id="chartToggleFocus">Focus</button>
+                        </div>
+                    </div>
                     <div class="chart-container">
                         <div id="usageChart"></div>
-                    </div>
-                </div>
-                <div class="card chart-card">
-                    <h3>Deep Work vs Distracted</h3>
-                    <div class="chart-container">
-                        <div id="focusVsDistractionChart"></div>
+                        <div id="focusVsDistractionChart" style="display:none;"></div>
                     </div>
                 </div>
                 <div class="card top-sites">

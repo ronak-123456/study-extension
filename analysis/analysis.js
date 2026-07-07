@@ -613,12 +613,25 @@ function renderChart(siteData) {
 }
 
 let focusDistChart = null;
+let _focusDistData = { focus: 0, distraction: 0 };
+
 function renderFocusVsDistractionChart(focusSec, distractionSec) {
+    // Store data for when user toggles to this view
+    _focusDistData = { focus: focusSec, distraction: distractionSec };
+
+    // Only render if currently visible
+    const chartElement = document.querySelector("#focusVsDistractionChart");
+    if (!chartElement || chartElement.style.display === 'none') return;
+
+    _renderFocusDistChart();
+}
+
+function _renderFocusDistChart() {
     const isDark = document.body.classList.contains('dark');
     const chartElement = document.querySelector("#focusVsDistractionChart");
     if (!chartElement) return;
 
-    const series = [focusSec, distractionSec];
+    const series = [_focusDistData.focus, _focusDistData.distraction];
     const labels = ['Deep Work', 'Distracted'];
     const colors = [isDark ? '#2dd4bf' : '#14b8a6', isDark ? '#fbbf24' : '#f59e0b'];
 
@@ -1593,4 +1606,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     loadTasks();
+});
+
+// ============================================
+// Chart Toggle (Sites vs Focus)
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+    const sitesBtn = document.getElementById('chartToggleSites');
+    const focusBtn = document.getElementById('chartToggleFocus');
+    const usageChart = document.getElementById('usageChart');
+    const focusChart = document.getElementById('focusVsDistractionChart');
+    const chartTitle = document.getElementById('chartTitle');
+
+    sitesBtn.addEventListener('click', () => {
+        sitesBtn.classList.add('active');
+        focusBtn.classList.remove('active');
+        usageChart.style.display = '';
+        focusChart.style.display = 'none';
+        chartTitle.textContent = 'Usage Distribution';
+    });
+
+    focusBtn.addEventListener('click', () => {
+        focusBtn.classList.add('active');
+        sitesBtn.classList.remove('active');
+        focusChart.style.display = '';
+        usageChart.style.display = 'none';
+        chartTitle.textContent = 'Deep Work vs Distracted';
+        _renderFocusDistChart();
+    });
 });
