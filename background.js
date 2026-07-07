@@ -54,7 +54,7 @@ function updateBadge() {
   chrome.action.setBadgeText({ text: badgeText });
 
   // Update periodic reminder if on distraction
-  chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {}, tempFocusPasses: {} }, (data) => {
+  chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {}, tempFocusPasses: {}, tempFocusLog: {} }, (data) => {
     if (!activeDomain) return;
 
     let isStudy = data.studyDomains.some(
@@ -83,10 +83,12 @@ function updateBadge() {
         const { limitSeconds } = data.allowances[matchedAllowanceDomain];
         const today = new Date().toISOString().split('T')[0];
         const todayStats = data.dailyStats[today] || {};
+        const todayTempFocus = (data.tempFocusLog[today]) || {};
         let usedSeconds = 0;
         Object.entries(todayStats).forEach(([d, seconds]) => {
           if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-            usedSeconds += seconds;
+            const tempSec = todayTempFocus[d] || 0;
+            usedSeconds += Math.max(0, seconds - tempSec);
           }
         });
         usedSeconds += durationSec;
@@ -268,10 +270,13 @@ function saveStats(domain, url, title, duration) {
           if (matchedAllowanceDomain) {
             const { limitSeconds } = allowances[matchedAllowanceDomain];
             const todayStats = stats[today] || {};
+            const todayTempFocusLog = tempFocusLog[today] || {};
             let usedSeconds = 0;
             Object.entries(todayStats).forEach(([d, seconds]) => {
               if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-                usedSeconds += seconds;
+                // Subtract temp focus time from used allowance
+                const tempSec = todayTempFocusLog[d] || 0;
+                usedSeconds += Math.max(0, seconds - tempSec);
               }
             });
 
@@ -500,17 +505,21 @@ function checkAllowance(allowances, dailyStats, domain, currentSessionSeconds) {
   const today = new Date().toISOString().split('T')[0];
   const todayStats = dailyStats[today] || {};
 
-  // Calculate total used time today (saved + current session)
-  let usedSeconds = 0;
-  Object.entries(todayStats).forEach(([d, seconds]) => {
-    if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-      usedSeconds += seconds;
-    }
-  });
-  usedSeconds += currentSessionSeconds;
+  // Calculate total used time today (saved + current session), minus temp focus time
+  chrome.storage.local.get({ tempFocusLog: {} }, (tfData) => {
+    const todayTempFocus = (tfData.tempFocusLog || {})[today] || {};
+    let usedSeconds = 0;
+    Object.entries(todayStats).forEach(([d, seconds]) => {
+      if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
+        // Subtract temp focus time — it shouldn't count against allowance
+        const tempSec = todayTempFocus[d] || 0;
+        usedSeconds += Math.max(0, seconds - tempSec);
+      }
+    });
+    usedSeconds += currentSessionSeconds;
 
-  const remainingSeconds = limitSeconds - usedSeconds;
-  const now = Date.now();
+    const remainingSeconds = limitSeconds - usedSeconds;
+    const now = Date.now();
 
   // Warning thresholds
   if (remainingSeconds <= 0) {
@@ -532,6 +541,7 @@ function checkAllowance(allowances, dailyStats, domain, currentSessionSeconds) {
       sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'warning');
     }
   }
+  });
 }
 
 function sendAllowanceNotification(tabId, domain, remainingSeconds, limitSeconds, level) {
