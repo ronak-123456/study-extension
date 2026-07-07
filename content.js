@@ -1,5 +1,5 @@
-if (window._hocusFocusLoaded) { /* already loaded */ } else {
-window._hocusFocusLoaded = true;
+if (window._hocusFocusLoaded) { /* skip */ } else { window._hocusFocusLoaded = true;
+
 console.log('Hocus Focus: Content script loaded');
 
 // =============================================
@@ -123,46 +123,123 @@ function createNudgeModal(domain, customMessage) {
   const style = document.createElement('style');
   style.textContent = SHARED_STYLES + `
     #ff-nudge-card {
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+      background: #1a1a2e;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      padding: 20px 24px;
+      gap: 12px;
     }
 
-    #ff-nudge-card .ff-logo-wrap {
-      background: linear-gradient(135deg, #6abf9b, #57ae8b);
+    #ff-nudge-card .ff-nudge-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+    }
+
+    #ff-nudge-card .ff-nudge-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    #ff-nudge-card .ff-nudge-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: #1a1a2e;
+      stroke-width: 2.5;
+      fill: none;
     }
 
     #ff-nudge-card .ff-title {
-      background: linear-gradient(135deg, #2d5f4d, #6abf9b);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      background: none;
+      -webkit-text-fill-color: unset;
+      margin: 0;
+    }
+
+    #ff-nudge-card .ff-message {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.5;
+      text-align: left;
+      width: 100%;
+    }
+
+    #ff-nudge-card .ff-btn-row {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
     }
 
     #ff-nudge-card .ff-btn-primary {
-      background: #6abf9b;
-      color: white;
-      box-shadow: 0 4px 12px rgba(106, 191, 155, 0.3);
+      flex: 1;
+      background: #fbbf24;
+      color: #1a1a2e;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
     }
 
     #ff-nudge-card .ff-btn-primary:hover {
-      background: #57ae8b;
-      box-shadow: 0 6px 16px rgba(106, 191, 155, 0.4);
+      background: #f59e0b;
+      transform: translateY(-1px);
+    }
+
+    #ff-nudge-card .ff-btn-dismiss {
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.5);
+      font-weight: 600;
+      font-size: 12px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #ff-nudge-card .ff-btn-dismiss:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.8);
     }
   `;
 
   const card = document.createElement('div');
   card.id = 'ff-nudge-card';
   card.className = 'ff-notification-card';
+  card.style.alignItems = 'flex-start';
   card.innerHTML = `
-    <div class="ff-logo-wrap">
-      <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Hocus Focus">
+    <div class="ff-nudge-top">
+      <div class="ff-nudge-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>
+      </div>
+      <h3 class="ff-title">You're off track</h3>
     </div>
-    <h3 class="ff-title">Stay Focused!</h3>
-    <p class="ff-message">${customMessage || `You wandered onto <strong>${domain}</strong>.<br>Time to get back to work!`}</p>
-    <button class="ff-btn ff-btn-primary">Got it, focusing!</button>
+    <p class="ff-message">${customMessage || `You wandered onto <strong>${domain}</strong>. Time to get back to work.`}</p>
+    <div class="ff-btn-row">
+      <button class="ff-btn-primary">Back to work</button>
+      <button class="ff-btn-dismiss">Dismiss</button>
+    </div>
   `;
 
-  card.querySelector('.ff-btn-primary').onclick = () => dismissNotification(container);
+  card.querySelector('.ff-btn-primary').onclick = () => {
+    dismissNotification(container);
+    if (window.history.length > 1) window.history.back();
+    else window.close();
+  };
+  card.querySelector('.ff-btn-dismiss').onclick = () => dismissNotification(container);
 
   container.appendChild(style);
   container.appendChild(card);

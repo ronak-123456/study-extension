@@ -293,12 +293,6 @@ function saveStats(domain, url, title, duration) {
 
 function triggerFocusNotification(tabId, currentDomain) {
   const now = Date.now();
-  if (
-    currentDomain === lastNotifiedDomain &&
-    now - lastNotifiedAt < NOTIFICATION_COOLDOWN_MS
-  ) {
-    return;
-  }
 
   lastNotifiedDomain = currentDomain;
   lastNotifiedAt = now;
@@ -615,14 +609,19 @@ function evaluateTab(tab) {
   const domain = getDomain(tab.url);
   if (!domain) return;
 
-  chrome.storage.local.get({ studyDomains: [] }, (data) => {
+  chrome.storage.local.get({ studyDomains: [], tempFocusPasses: {} }, (data) => {
     const allowedStudyDomains = data.studyDomains;
     const isStudyTab = allowedStudyDomains.some(
       (allowedDomain) =>
         domain === allowedDomain || domain.endsWith(`.${allowedDomain}`)
     );
 
-    if (!isStudyTab && allowedStudyDomains.length > 0) {
+    // Check temp focus pass
+    const hasTempPass = Object.entries(data.tempFocusPasses).find(([d, p]) =>
+      (domain === d || domain.endsWith('.' + d)) && p.expiresAt > Date.now()
+    );
+
+    if (!isStudyTab && !hasTempPass && allowedStudyDomains.length > 0) {
       triggerFocusNotification(tab.id, domain);
     }
   });
