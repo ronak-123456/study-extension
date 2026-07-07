@@ -323,7 +323,7 @@ function updateDashboard() {
         }
 
         // Focus vs Distraction Chart
-        renderFocusVsDistractionChart(focusSeconds, distractionSeconds);
+        renderFocusVsDistractionChart(focusSeconds, distractionSeconds, domainAggregation);
 
         // Detailed Table
         updateDetailedTable(urlStats, datesToProcess);
@@ -613,11 +613,11 @@ function renderChart(siteData) {
 }
 
 let focusDistChart = null;
-let _focusDistData = { focus: 0, distraction: 0 };
+let _focusDistData = { focus: 0, distraction: 0, sites: {} };
 
-function renderFocusVsDistractionChart(focusSec, distractionSec) {
+function renderFocusVsDistractionChart(focusSec, distractionSec, domainAggregation) {
     // Store data for when user toggles to this view
-    _focusDistData = { focus: focusSec, distraction: distractionSec };
+    _focusDistData = { focus: focusSec, distraction: distractionSec, sites: domainAggregation || {} };
 
     // Only render if currently visible
     const chartElement = document.querySelector("#focusVsDistractionChart");
@@ -631,9 +631,20 @@ function _renderFocusDistChart() {
     const chartElement = document.querySelector("#focusVsDistractionChart");
     if (!chartElement) return;
 
-    const series = [_focusDistData.focus, _focusDistData.distraction];
-    const labels = ['Deep Work', 'Distracted'];
-    const colors = [isDark ? '#2dd4bf' : '#14b8a6', isDark ? '#fbbf24' : '#f59e0b'];
+    // Build per-site breakdown: focus sites and distraction sites separately
+    const sites = _focusDistData.sites;
+    const sorted = Object.entries(sites).sort((a, b) => b[1].seconds - a[1].seconds);
+    const topSites = sorted.slice(0, 8);
+
+    const labels = topSites.map(([name]) => name);
+    const series = topSites.map(([, d]) => d.seconds);
+    const colors = topSites.map(([, d]) => {
+        if (d.isStudy) {
+            return isDark ? '#2dd4bf' : '#14b8a6';
+        } else {
+            return isDark ? '#fbbf24' : '#f59e0b';
+        }
+    });
 
     const options = {
         series: series,
@@ -669,12 +680,11 @@ function _renderFocusDistChart() {
                         },
                         total: {
                             show: true,
-                            label: 'Focus Score',
+                            label: 'Total Time',
                             color: isDark ? '#94a3b8' : '#64748b',
                             formatter: function (w) {
                                 const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
-                                const score = total > 0 ? Math.round((w.globals.seriesTotals[0] / total) * 100) : 0;
-                                return score + '%';
+                                return formatTime(total);
                             }
                         }
                     }
