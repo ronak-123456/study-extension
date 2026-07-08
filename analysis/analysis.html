@@ -18,7 +18,7 @@
             <div class="header-left">
                 <div class="brand">
                     <img src="../logo.jpg" class="logo">
-                    <h1>Hocus Focus <span style="font-weight: 400; font-size: 0.5em; opacity: 0.6;">— Your focus report</span></h1>
+                    <h1><span style="color: var(--primary);">Hocus</span> <span style="color: var(--yellow);">Focus</span> <span style="font-weight: 400; font-size: 0.5em; opacity: 0.6;">— Your focus report</span></h1>
                 </div>
                 <div class="view-toggle">
                     <button id="dailyTab" class="tab-btn active">Daily</button>
@@ -32,7 +32,7 @@
                     <div class="focus-info-popup" id="focusInfoPopup">
                         <p><strong>How it's calculated:</strong></p>
                         <p>Focus Score = (Focus Time ÷ Total Time) × 100</p>
-                        <p>Focus Time is time spent on your study domains. Total Time includes both focus and distraction time.</p>
+                        <p>Focus Time is time spent on your focus domains. Total Time includes both focus and distraction time.</p>
                     </div>
                 </div>
                 <div class="date-navigator">
@@ -115,9 +115,16 @@
 
             <section class="charts">
                 <div class="card chart-card">
-                    <h3 id="chartTitle">Usage Distribution</h3>
+                    <div class="chart-header-row">
+                        <h3 id="chartTitle">Usage Distribution</h3>
+                        <div class="chart-toggle">
+                            <button class="chart-toggle-btn active" id="chartToggleSites">Sites</button>
+                            <button class="chart-toggle-btn" id="chartToggleFocus">Focus</button>
+                        </div>
+                    </div>
                     <div class="chart-container">
                         <div id="usageChart"></div>
+                        <div id="focusVsDistractionChart" style="display:none;"></div>
                     </div>
                 </div>
                 <div class="card top-sites">
@@ -190,7 +197,7 @@
                         </div>
                         <div class="form-group">
                             <label for="milestoneDesc">Description</label>
-                            <input type="text" id="milestoneDesc" placeholder="e.g., Study 5 hours in one day" required maxlength="60">
+                            <input type="text" id="milestoneDesc" placeholder="e.g., Focus 5 hours in one day" required maxlength="60">
                         </div>
                         <div class="form-group">
                             <label for="milestoneType">Milestone Type</label>
@@ -273,6 +280,20 @@
                 </div>
             </div>
 
+            <section class="tasks-dashboard-section">
+                <div class="card">
+                    <div class="tasks-dash-header">
+                        <h3>Tasks</h3>
+                        <span class="tasks-dash-count" id="dashTasksCount">0/0 completed</span>
+                    </div>
+                    <div class="tasks-dash-add">
+                        <input type="text" id="dashTaskInput" placeholder="Add a task...">
+                        <button id="dashAddTaskBtn">Add</button>
+                    </div>
+                    <ul class="tasks-dash-list" id="dashTaskList"></ul>
+                </div>
+            </section>
+
             <section class="detailed-activity">
                 <div class="card activity-card">
                     <h3>Detailed activity</h3>
@@ -319,8 +340,8 @@
                         <div class="guide-step">
                             <div class="guide-step-number">1</div>
                             <div class="guide-step-content">
-                                <h4>Add Study Domains</h4>
-                                <p>Open the extension popup and add websites you use for studying — like docs.google.com, khanacademy.org, or github.com. These are tracked as focus time.</p>
+                                <h4>Add Focus Domains</h4>
+                                <p>Open the extension popup and add websites you use for work or learning — like docs.google.com, khanacademy.org, or github.com. These are tracked as focus time.</p>
                             </div>
                         </div>
                         <div class="guide-step">
@@ -334,14 +355,14 @@
                             <div class="guide-step-number">3</div>
                             <div class="guide-step-content">
                                 <h4>Browse Normally</h4>
-                                <p>Hocus Focus tracks time in the background. The badge shows how long you've been on the current site. Green = study, red = distraction.</p>
+                                <p>Hocus Focus tracks time in the background. The badge shows how long you've been on the current site. Green = focus, red = distraction.</p>
                             </div>
                         </div>
                         <div class="guide-step">
                             <div class="guide-step-number">4</div>
                             <div class="guide-step-content">
                                 <h4>Get Smart Nudges</h4>
-                                <p>When you switch to a distraction site, you'll get a witty nudge. Every 10 min on distractions, messages escalate. Study milestones get encouragement.</p>
+                                <p>When you switch to a distraction site, you'll get a witty nudge. Every 10 min on distractions, messages escalate. Focus milestones get encouragement.</p>
                             </div>
                         </div>
                         <div class="guide-step">
@@ -355,7 +376,7 @@
                             <div class="guide-step-number">6</div>
                             <div class="guide-step-content">
                                 <h4>Create Custom Milestones</h4>
-                                <p>Set personal goals like "Study 3 hours today" or "7-day streak". Track them in the Milestones section with the Add Milestone button.</p>
+                                <p>Set personal goals like "Focus 3 hours today" or "7-day streak". Track them in the Milestones section with the Add Milestone button.</p>
                             </div>
                         </div>
                         <div class="guide-step">

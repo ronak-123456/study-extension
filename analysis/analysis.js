@@ -322,6 +322,9 @@ function updateDashboard() {
             renderChart(topForChart);
         }
 
+        // Focus vs Distraction Chart
+        renderFocusVsDistractionChart(focusSeconds, distractionSeconds, domainAggregation);
+
         // Detailed Table
         updateDetailedTable(urlStats, datesToProcess);
 
@@ -607,6 +610,114 @@ function renderChart(siteData) {
 
     myChart = new ApexCharts(chartElement, options);
     myChart.render();
+}
+
+let focusDistChart = null;
+let _focusDistData = { focus: 0, distraction: 0, sites: {} };
+
+function renderFocusVsDistractionChart(focusSec, distractionSec, domainAggregation) {
+    // Store data for when user toggles to this view
+    _focusDistData = { focus: focusSec, distraction: distractionSec, sites: domainAggregation || {} };
+
+    // Only render if currently visible
+    const chartElement = document.querySelector("#focusVsDistractionChart");
+    if (!chartElement || chartElement.style.display === 'none') return;
+
+    _renderFocusDistChart();
+}
+
+function _renderFocusDistChart() {
+    const isDark = document.body.classList.contains('dark');
+    const chartElement = document.querySelector("#focusVsDistractionChart");
+    if (!chartElement) return;
+
+    // Build per-site breakdown: focus sites and distraction sites separately
+    const sites = _focusDistData.sites;
+    const sorted = Object.entries(sites).sort((a, b) => b[1].seconds - a[1].seconds);
+    const topSites = sorted.slice(0, 8);
+
+    const labels = topSites.map(([name]) => name);
+    const series = topSites.map(([, d]) => d.seconds);
+    const colors = topSites.map(([, d]) => {
+        if (d.isStudy) {
+            return isDark ? '#2dd4bf' : '#14b8a6';
+        } else {
+            return isDark ? '#fbbf24' : '#f59e0b';
+        }
+    });
+
+    const options = {
+        series: series,
+        chart: {
+            type: 'donut',
+            height: '100%',
+            animations: { enabled: true, easing: 'easeinout', speed: 800 },
+            fontFamily: 'Outfit, sans-serif'
+        },
+        labels: labels,
+        colors: colors,
+        stroke: { show: false },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '75%',
+                    labels: {
+                        show: true,
+                        name: {
+                            show: true,
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            color: isDark ? '#94a3b8' : '#64748b',
+                            offsetY: -10
+                        },
+                        value: {
+                            show: true,
+                            fontSize: '24px',
+                            fontWeight: 800,
+                            color: isDark ? '#f8fafc' : '#0f172a',
+                            offsetY: 10,
+                            formatter: (val) => formatTime(val)
+                        },
+                        total: {
+                            show: true,
+                            label: 'Total Time',
+                            color: isDark ? '#94a3b8' : '#64748b',
+                            formatter: function (w) {
+                                const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
+                                return formatTime(total);
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        legend: {
+            show: true,
+            position: 'bottom',
+            horizontalAlign: 'center',
+            fontSize: '13px',
+            fontWeight: 500,
+            labels: { colors: isDark ? '#94a3b8' : '#64748b' },
+            markers: { radius: 12, width: 10, height: 10 },
+            itemMargin: { horizontal: 12, vertical: 4 }
+        },
+        dataLabels: { enabled: false },
+        tooltip: {
+            theme: isDark ? 'dark' : 'light',
+            y: { formatter: (val) => formatTime(val) }
+        },
+        responsive: [{
+            breakpoint: 480,
+            options: { chart: { height: 300 }, legend: { position: 'bottom' } }
+        }]
+    };
+
+    if (focusDistChart) {
+        focusDistChart.destroy();
+    }
+
+    focusDistChart = new ApexCharts(chartElement, options);
+    focusDistChart.render();
 }
 
 function renderWeeklyBarChart(allStats, dates, studyDomains) {
@@ -1415,5 +1526,122 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === guideOverlay) {
             guideOverlay.classList.remove('active');
         }
+    });
+});
+
+// ============================================
+// Tasks Dashboard
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+    const taskInput = document.getElementById('dashTaskInput');
+    const addBtn = document.getElementById('dashAddTaskBtn');
+    const taskList = document.getElementById('dashTaskList');
+    const countEl = document.getElementById('dashTasksCount');
+
+    function loadTasks() {
+        chrome.storage.local.get({ tasks: [] }, (data) => {
+            renderTasks(data.tasks);
+        });
+    }
+
+    function saveTasks(tasks) {
+        chrome.storage.local.set({ tasks }, () => renderTasks(tasks));
+    }
+
+    function renderTasks(tasks) {
+        taskList.innerHTML = '';
+        const done = tasks.filter(t => t.done).length;
+        countEl.textContent = `${done}/${tasks.length} completed`;
+
+        if (tasks.length === 0) {
+            taskList.innerHTML = '<li class="tasks-dash-empty">No tasks yet. Add one above!</li>';
+            return;
+        }
+
+        tasks.forEach((task, i) => {
+            const li = document.createElement('li');
+            li.className = `tasks-dash-item ${task.done ? 'done' : ''}`;
+            li.innerHTML = `
+                <div class="tasks-dash-checkbox ${task.done ? 'checked' : ''}" data-index="${i}">
+                    <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+                <span class="tasks-dash-text">${escapeHtml(task.text)}</span>
+                <button class="tasks-dash-delete" data-index="${i}">&times;</button>
+            `;
+            taskList.appendChild(li);
+        });
+
+        // Checkbox
+        taskList.querySelectorAll('.tasks-dash-checkbox').forEach(cb => {
+            cb.addEventListener('click', () => {
+                const idx = parseInt(cb.dataset.index);
+                chrome.storage.local.get({ tasks: [] }, (data) => {
+                    data.tasks[idx].done = !data.tasks[idx].done;
+                    saveTasks(data.tasks);
+                });
+            });
+        });
+
+        // Delete
+        taskList.querySelectorAll('.tasks-dash-delete').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.dataset.index);
+                chrome.storage.local.get({ tasks: [] }, (data) => {
+                    data.tasks.splice(idx, 1);
+                    saveTasks(data.tasks);
+                });
+            });
+        });
+    }
+
+    function addTask() {
+        const text = taskInput.value.trim();
+        if (!text) return;
+        chrome.storage.local.get({ tasks: [] }, (data) => {
+            data.tasks.push({ text, done: false, createdAt: Date.now() });
+            saveTasks(data.tasks);
+            taskInput.value = '';
+        });
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    addBtn.addEventListener('click', addTask);
+    taskInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addTask();
+    });
+
+    loadTasks();
+});
+
+// ============================================
+// Chart Toggle (Sites vs Focus)
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+    const sitesBtn = document.getElementById('chartToggleSites');
+    const focusBtn = document.getElementById('chartToggleFocus');
+    const usageChart = document.getElementById('usageChart');
+    const focusChart = document.getElementById('focusVsDistractionChart');
+    const chartTitle = document.getElementById('chartTitle');
+
+    sitesBtn.addEventListener('click', () => {
+        sitesBtn.classList.add('active');
+        focusBtn.classList.remove('active');
+        usageChart.style.display = '';
+        focusChart.style.display = 'none';
+        chartTitle.textContent = 'Usage Distribution';
+    });
+
+    focusBtn.addEventListener('click', () => {
+        focusBtn.classList.add('active');
+        sitesBtn.classList.remove('active');
+        focusChart.style.display = '';
+        usageChart.style.display = 'none';
+        chartTitle.textContent = 'Deep Work vs Distracted';
+        _renderFocusDistChart();
     });
 });

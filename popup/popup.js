@@ -124,6 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.storage.local.set({ studyDomains: currentList }, () => {
         renderList(currentList);
         setStatus(fromCurrent ? 'Current website added.' : 'Domain added.', 'success');
+
+        // Show first-time tip when first domain is added
+        if (currentList.length === 1) {
+          showFirstTimeTip();
+        }
       });
     });
   }
@@ -145,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (domains.length === 0) {
       const li = document.createElement('li');
       li.className = 'empty';
-      li.textContent = 'No study domains added yet.';
+      li.textContent = 'No focus domains added yet.';
       domainList.appendChild(li);
       return;
     }
@@ -178,6 +183,31 @@ document.addEventListener('DOMContentLoaded', () => {
       status.textContent = '';
       status.className = '';
     }, 2200);
+  }
+
+  function showFirstTimeTip() {
+    // Only show once
+    chrome.storage.local.get({ firstTipShown: false }, (data) => {
+      if (data.firstTipShown) return;
+      chrome.storage.local.set({ firstTipShown: true });
+
+      const tip = document.createElement('div');
+      tip.className = 'first-time-tip';
+      tip.innerHTML = `
+        <div class="tip-header">How it works</div>
+        <ul class="tip-list">
+          <li><strong>Browse normally</strong> — time on focus sites counts as deep work, everything else is distraction.</li>
+          <li><strong>Badge timer</strong> — the icon shows how long you've been on the current site. Green = focus, Red = distraction.</li>
+          <li><strong>Get nudged</strong> — you'll get a reminder every time you open a non-focus site.</li>
+          <li><strong>Pin the extension</strong> — click the puzzle icon in Chrome toolbar, then pin Hocus Focus for quick access.</li>
+        </ul>
+        <button class="tip-dismiss">Got it</button>
+      `;
+      tip.querySelector('.tip-dismiss').onclick = () => tip.remove();
+
+      const popup = document.querySelector('.popup');
+      popup.insertBefore(tip, popup.children[2]);
+    });
   }
 });
 
@@ -498,6 +528,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const domainEl = document.getElementById('tempFocusDomain');
   const countdownEl = document.getElementById('tempFocusCountdown');
   const cancelBtn = document.getElementById('tempFocusCancel');
+  const customMinInput = document.getElementById('tempFocusCustomMin');
+  const customBtn = document.getElementById('tempFocusCustomBtn');
   let countdownInterval = null;
 
   // Get current tab domain
@@ -516,6 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
   durationBtns.forEach(btn => {
     btn.addEventListener('click', async () => {
       const minutes = parseInt(btn.dataset.minutes);
+      if (!minutes || minutes <= 0) return;
       const domain = await getCurrentDomain();
       if (!domain) return;
 
@@ -525,12 +558,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const expiresAt = Date.now() + (minutes * 60 * 1000);
         passes[domain] = { expiresAt, minutes };
         chrome.storage.local.set({ tempFocusPasses: passes }, () => {
-          // Create alarm for expiry
           chrome.alarms.create(`tempFocus_${domain}`, { delayInMinutes: Math.max(minutes, 1) });
           showActivePass(domain, expiresAt);
         });
       });
     });
+  });
+
+  // Custom timer
+  customBtn.addEventListener('click', async () => {
+    const minutes = parseInt(customMinInput.value);
+    if (!minutes || minutes <= 0) return;
+    const domain = await getCurrentDomain();
+    if (!domain) return;
+
+    chrome.storage.local.get({ tempFocusPasses: {} }, (data) => {
+      const passes = data.tempFocusPasses || {};
+      const expiresAt = Date.now() + (minutes * 60 * 1000);
+      passes[domain] = { expiresAt, minutes };
+      chrome.storage.local.set({ tempFocusPasses: passes }, () => {
+        chrome.alarms.create(`tempFocus_${domain}`, { delayInMinutes: Math.max(minutes, 1) });
+        showActivePass(domain, expiresAt);
+        customMinInput.value = '';
+      });
+    });
+  });
+
+  customMinInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') customBtn.click();
   });
 
   // Cancel
@@ -592,4 +647,89 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   checkActivePass();
+})();
+
+// Tasks
+(function() {
+  const taskInput = document.getElementById('taskInput');
+  const addTaskBtn = document.getElementById('addTaskBtn');
+  const taskList = document.getElementById('taskList');
+  const tasksCount = document.getElementById('tasksCount');
+
+  function loadTasks() {
+    chrome.storage.local.get({ tasks: [] }, (data) => {
+      renderTasks(data.tasks);
+    });
+  }
+
+  function saveTasks(tasks) {
+    chrome.storage.local.set({ tasks }, () => renderTasks(tasks));
+  }
+
+  function renderTasks(tasks) {
+    taskList.innerHTML = '';
+    const done = tasks.filter(t => t.done).length;
+    tasksCount.textContent = `${done}/${tasks.length}`;
+
+    if (tasks.length === 0) {
+      taskList.innerHTML = '<li style="padding:10px;text-align:center;font-size:11px;color:var(--muted);font-style:italic;">No tasks yet</li>';
+      return;
+    }
+
+    tasks.forEach((task, i) => {
+      const li = document.createElement('li');
+      li.className = `task-item ${task.done ? 'done' : ''}`;
+      li.innerHTML = `
+        <div class="task-checkbox ${task.done ? 'checked' : ''}" data-index="${i}"></div>
+        <span class="task-text">${escapeHtml(task.text)}</span>
+        <button class="task-delete" data-index="${i}">&times;</button>
+      `;
+      taskList.appendChild(li);
+    });
+
+    // Checkbox click
+    taskList.querySelectorAll('.task-checkbox').forEach(cb => {
+      cb.addEventListener('click', () => {
+        const idx = parseInt(cb.dataset.index);
+        chrome.storage.local.get({ tasks: [] }, (data) => {
+          data.tasks[idx].done = !data.tasks[idx].done;
+          saveTasks(data.tasks);
+        });
+      });
+    });
+
+    // Delete click
+    taskList.querySelectorAll('.task-delete').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.index);
+        chrome.storage.local.get({ tasks: [] }, (data) => {
+          data.tasks.splice(idx, 1);
+          saveTasks(data.tasks);
+        });
+      });
+    });
+  }
+
+  function addTask() {
+    const text = taskInput.value.trim();
+    if (!text) return;
+    chrome.storage.local.get({ tasks: [] }, (data) => {
+      data.tasks.push({ text, done: false, createdAt: Date.now() });
+      saveTasks(data.tasks);
+      taskInput.value = '';
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  addTaskBtn.addEventListener('click', addTask);
+  taskInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addTask();
+  });
+
+  loadTasks();
 })();

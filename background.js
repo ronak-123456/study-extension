@@ -54,7 +54,7 @@ function updateBadge() {
   chrome.action.setBadgeText({ text: badgeText });
 
   // Update periodic reminder if on distraction
-  chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {}, tempFocusPasses: {} }, (data) => {
+  chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {}, tempFocusPasses: {}, tempFocusLog: {} }, (data) => {
     if (!activeDomain) return;
 
     let isStudy = data.studyDomains.some(
@@ -83,10 +83,12 @@ function updateBadge() {
         const { limitSeconds } = data.allowances[matchedAllowanceDomain];
         const today = new Date().toISOString().split('T')[0];
         const todayStats = data.dailyStats[today] || {};
+        const todayTempFocus = (data.tempFocusLog[today]) || {};
         let usedSeconds = 0;
         Object.entries(todayStats).forEach(([d, seconds]) => {
           if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-            usedSeconds += seconds;
+            const tempSec = todayTempFocus[d] || 0;
+            usedSeconds += Math.max(0, seconds - tempSec);
           }
         });
         usedSeconds += durationSec;
@@ -268,10 +270,13 @@ function saveStats(domain, url, title, duration) {
           if (matchedAllowanceDomain) {
             const { limitSeconds } = allowances[matchedAllowanceDomain];
             const todayStats = stats[today] || {};
+            const todayTempFocusLog = tempFocusLog[today] || {};
             let usedSeconds = 0;
             Object.entries(todayStats).forEach(([d, seconds]) => {
               if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-                usedSeconds += seconds;
+                // Subtract temp focus time from used allowance
+                const tempSec = todayTempFocusLog[d] || 0;
+                usedSeconds += Math.max(0, seconds - tempSec);
               }
             });
 
@@ -301,9 +306,9 @@ function triggerFocusNotification(tabId, currentDomain) {
 
   chrome.storage.local.get({ customNudges: [] }, (data) => {
     const defaultMessages = [
-      `You wandered onto ${currentDomain}. Your study notes miss you.`,
-      `${currentDomain}? Really? Your textbook is crying.`,
-      `Plot twist: ${currentDomain} won't help you pass that exam.`
+      `You wandered onto ${currentDomain}. Your work notes miss you.`,
+      `${currentDomain}? Really? Your tasks are crying.`,
+      `Plot twist: ${currentDomain} won't help you finish that deadline.`
     ];
 
     const allMessages = data.customNudges.length > 0
@@ -334,7 +339,7 @@ function triggerFocusNotification(tabId, currentDomain) {
             domain: currentDomain,
             customMessage: message
           });
-        }).catch(() => {});
+        }).catch(() => { });
       });
     }
   });
@@ -343,7 +348,7 @@ function triggerFocusNotification(tabId, currentDomain) {
 // Witty distraction messages — escalate with time
 const DISTRACTION_MESSAGES = {
   10: [
-    "10 minutes gone. That's a whole pomodoro warm-up wasted here 🍅",
+    "10 minutes gone. That's a whole pomodoro warm-up wasted here",
     "You've been here 10 min. Your future self is side-eyeing you.",
     "10 minutes of pure procrastination. Impressive commitment, honestly.",
   ],
@@ -353,22 +358,22 @@ const DISTRACTION_MESSAGES = {
     "20 minutes. That's almost enough time to learn something useful. Almost.",
   ],
   30: [
-    "30 minutes. Half an hour. Gone. Poof. Like your productivity. 💨",
+    "30 minutes. Half an hour. Gone. Poof. Like your productivity.",
     "You've officially spent more time here than on actual work. Ouch.",
     "30 min! If procrastination was a sport, you'd be going pro.",
   ],
   40: [
     "40 minutes. At this rate, your to-do list is writing its resignation letter.",
-    "Still going? Your textbooks filed a missing person report.",
+    "Still going? Your tasks filed a missing person report.",
     "40 min of distraction. That's a whole episode of a show. You could've at least been entertained.",
   ],
   50: [
-    "50 minutes. Genuinely asking — did you forget you had work? 🤔",
-    "Almost an hour! Your study goals called, they want a divorce.",
+    "50 minutes. Genuinely asking — did you forget you had work?",
+    "Almost an hour! Your focus goals called, they want a divorce.",
     "50 min deep. At this point I'm not judging, I'm worried.",
   ],
   60: [
-    "ONE HOUR. 🚨 This is an intervention. Please close this tab.",
+    "ONE HOUR. This is an intervention. Please close this tab.",
     "60 minutes of distraction. That's it. I'm calling your mom.",
     "An entire hour gone. You could've learned a new skill by now. Just sayin'.",
   ]
@@ -412,7 +417,7 @@ function sendGraduatedDistraction(tabId, domain, minutes) {
           message,
           severity
         });
-      }).catch(() => {});
+      }).catch(() => { });
     });
   }
 }
@@ -427,7 +432,7 @@ const STUDY_MESSAGES = {
   60: [
     "ONE HOUR of focus! 🎉 You're absolutely crushing it!",
     "60 minutes deep — you're built different. Seriously.",
-    "A full hour of studying! Future you is so grateful right now.",
+    "A full hour of deep work! Future you is so grateful right now.",
   ],
   90: [
     "90 minutes! That's elite-level focus. Take a 5-min stretch? 🧘",
@@ -442,7 +447,7 @@ const STUDY_MESSAGES = {
   180: [
     "THREE HOURS?! 🤯 You're not human. Take a break, superhero!",
     "180 minutes. At this point you deserve a PhD just for sitting here.",
-    "3 hours focused! Please drink water. Please. 💧",
+    "3 hours focused! Please drink water. Please.",
   ]
 };
 
@@ -475,7 +480,7 @@ function sendStudyEncouragement(tabId, domain, minutes) {
           minutes,
           message
         });
-      }).catch(() => {});
+      }).catch(() => { });
     });
   }
 }
@@ -500,38 +505,43 @@ function checkAllowance(allowances, dailyStats, domain, currentSessionSeconds) {
   const today = new Date().toISOString().split('T')[0];
   const todayStats = dailyStats[today] || {};
 
-  // Calculate total used time today (saved + current session)
-  let usedSeconds = 0;
-  Object.entries(todayStats).forEach(([d, seconds]) => {
-    if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-      usedSeconds += seconds;
+  // Calculate total used time today (saved + current session), minus temp focus time
+  chrome.storage.local.get({ tempFocusLog: {} }, (tfData) => {
+    const todayTempFocus = (tfData.tempFocusLog || {})[today] || {};
+    let usedSeconds = 0;
+    Object.entries(todayStats).forEach(([d, seconds]) => {
+      if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
+        // Subtract temp focus time — it shouldn't count against allowance
+        const tempSec = todayTempFocus[d] || 0;
+        usedSeconds += Math.max(0, seconds - tempSec);
+      }
+    });
+    usedSeconds += currentSessionSeconds;
+
+    const remainingSeconds = limitSeconds - usedSeconds;
+    const now = Date.now();
+
+    // Warning thresholds
+    if (remainingSeconds <= 0) {
+      // Time's up — send block message
+      if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+        lastAllowanceWarning = now;
+        sendAllowanceNotification(activeTabId, matchedAllowanceDomain, 0, limitSeconds, 'exceeded');
+      }
+    } else if (remainingSeconds <= 60 && remainingSeconds > 0) {
+      // Less than 1 minute left
+      if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+        lastAllowanceWarning = now;
+        sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'critical');
+      }
+    } else if (remainingSeconds <= 300 && currentSessionSeconds % 60 === 0) {
+      // Less than 5 minutes — countdown every minute
+      if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+        lastAllowanceWarning = now;
+        sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'warning');
+      }
     }
   });
-  usedSeconds += currentSessionSeconds;
-
-  const remainingSeconds = limitSeconds - usedSeconds;
-  const now = Date.now();
-
-  // Warning thresholds
-  if (remainingSeconds <= 0) {
-    // Time's up — send block message
-    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
-      lastAllowanceWarning = now;
-      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, 0, limitSeconds, 'exceeded');
-    }
-  } else if (remainingSeconds <= 60 && remainingSeconds > 0) {
-    // Less than 1 minute left
-    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
-      lastAllowanceWarning = now;
-      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'critical');
-    }
-  } else if (remainingSeconds <= 300 && currentSessionSeconds % 60 === 0) {
-    // Less than 5 minutes — countdown every minute
-    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
-      lastAllowanceWarning = now;
-      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'warning');
-    }
-  }
 }
 
 function sendAllowanceNotification(tabId, domain, remainingSeconds, limitSeconds, level) {
@@ -582,7 +592,7 @@ function sendAllowanceNotification(tabId, domain, remainingSeconds, limitSeconds
           limitSeconds,
           level
         });
-      }).catch(() => {});
+      }).catch(() => { });
     });
   }
 }

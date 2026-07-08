@@ -15,6 +15,8 @@
       --primary: #6abf9b;
       --primary-strong: #57ae8b;
       --primary-soft: #d8f2e5;
+      --yellow: #f59e0b;
+      --yellow-soft: #fef3c7;
       --line: #cde8db;
       --danger: #d95d5d;
       --danger-soft: #ffe9e9;
@@ -30,6 +32,8 @@
       --primary: #A5E9DD;
       --primary-strong: #FDE047;
       --primary-soft: #1a3632;
+      --yellow: #fbbf24;
+      --yellow-soft: rgba(251, 191, 36, 0.1);
       --line: #34908b;
       --shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     }
@@ -118,14 +122,14 @@
       font-weight: 700;
       padding: 4px 8px;
       border-radius: 999px;
-      background: var(--primary-soft);
+      background: linear-gradient(135deg, var(--primary-soft), var(--yellow-soft));
       color: var(--text);
-      border: 1px solid var(--line);
+      border: 1px solid var(--primary);
     }
 
     body.dark .badge {
-      color: #fdf4af;
-      background: rgba(165, 233, 221, 0.1);
+      color: #fbbf24;
+      background: linear-gradient(135deg, rgba(165, 233, 221, 0.1), rgba(251, 191, 36, 0.1));
       border-color: #6fbeb2;
     }
 
@@ -488,6 +492,20 @@
       font-size: 14px;
       font-weight: 700;
       color: var(--text);
+    }
+
+    .pomo-title::before,
+    .allowance-title::before,
+    .temp-focus-title::before,
+    .tasks-title::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--yellow);
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
     }
 
     .pomo-tabs {
@@ -916,6 +934,113 @@
       color: #0a1413;
     }
 
+    .temp-focus-custom {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .temp-focus-custom input {
+      flex: 1;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      background: transparent;
+      outline: none;
+      text-align: center;
+    }
+
+    .temp-focus-custom input:focus {
+      border-color: var(--primary);
+    }
+
+    .temp-focus-custom-btn {
+      padding: 7px 14px !important;
+      flex: none !important;
+    }
+
+    /* First Time Tip */
+    .first-time-tip {
+      margin: 12px 0;
+      padding: 14px 16px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary);
+      border-radius: 12px;
+      animation: tipFadeIn 0.3s ease;
+    }
+
+    @keyframes tipFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .tip-header {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary-strong);
+      margin-bottom: 8px;
+    }
+
+    .tip-list {
+      margin: 0;
+      padding: 0 0 0 16px;
+      list-style: none;
+    }
+
+    .tip-list li {
+      font-size: 11px;
+      color: var(--text);
+      line-height: 1.6;
+      margin-bottom: 6px;
+      position: relative;
+      padding-left: 4px;
+    }
+
+    .tip-list li::before {
+      content: '•';
+      position: absolute;
+      left: -12px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .tip-list li strong {
+      color: var(--primary-strong);
+    }
+
+    .tip-dismiss {
+      margin-top: 10px;
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    body.dark .tip-dismiss {
+      color: #0a1413;
+    }
+
+    .tip-dismiss:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
     .temp-focus-active {
       display: flex;
       align-items: center;
@@ -961,14 +1086,170 @@
       color: #fff;
     }
 
+    /* Tasks Section */
+    .tasks-section {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .tasks-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .tasks-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0;
+    }
+
+    .tasks-count {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .tasks-add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .tasks-add-row input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: transparent;
+      outline: none;
+    }
+
+    .tasks-add-row input:focus {
+      border-color: var(--primary);
+    }
+
+    .tasks-add-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    body.dark .tasks-add-btn {
+      color: #0a1413;
+    }
+
+    .tasks-add-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(106, 191, 155, 0.3);
+    }
+
+    .task-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .task-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .task-list::-webkit-scrollbar-thumb {
+      background: var(--muted);
+      border-radius: 4px;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+
+    .task-item:hover {
+      background: var(--primary-soft);
+    }
+
+    .task-checkbox {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .task-checkbox.checked {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .task-checkbox.checked::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .task-text {
+      font-size: 12px;
+      color: var(--text);
+      flex: 1;
+      word-break: break-word;
+    }
+
+    .task-item.done .task-text {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+
+    .task-delete {
+      opacity: 0;
+      border: none;
+      background: none;
+      color: var(--danger);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: opacity 0.2s;
+    }
+
+    .task-item:hover .task-delete {
+      opacity: 1;
+    }
+
   </style>
-</head>
 
 <body>
   <div class="popup">
     <div class="header-actions">
       <div style="display: flex; gap: 8px; align-items: center;">
-        <span class="badge">✨ Hocus Focus</span>
+        <span class="badge"><span style="color:var(--primary-strong);">Hocus</span> <span style="color:var(--yellow);">Focus</span></span>
         <button id="themeToggle" class="icon-btn" title="Toggle Theme">
           <svg id="moonIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
             stroke-width="2">
@@ -1001,9 +1282,9 @@
       <div class="logo-container">
         <img src="../logo.jpg" class="main-logo">
       </div>
-      <h2>Study Domains</h2>
+      <h2>Focus Domains</h2>
     </div>
-    <p class="subtitle">Add your approved learning sites and keep your browsing on track.</p>
+    <p class="subtitle">Add your productive sites and keep your browsing on track.</p>
 
     <button id="addCurrentBtn" class="secondary-btn">+ Add Current Website</button>
 
@@ -1044,7 +1325,8 @@
           <button id="addAllowanceBtn" class="allowance-add-btn" title="Add allowance">Set Limit</button>
         </div>
       </div>
-      <button id="addCurrentAllowanceBtn" class="secondary-btn" style="margin-bottom: 10px; font-size: 12px; padding: 8px;">+ Limit Current Website</button>
+      <button id="addCurrentAllowanceBtn" class="secondary-btn"
+        style="margin-bottom: 10px; font-size: 12px; padding: 8px;">+ Limit Current Website</button>
       <ul id="allowanceList" class="allowance-list"></ul>
     </div>
 
@@ -1060,6 +1342,10 @@
           <button class="temp-focus-dur-btn" data-minutes="10">10m</button>
           <button class="temp-focus-dur-btn" data-minutes="15">15m</button>
           <button class="temp-focus-dur-btn" data-minutes="30">30m</button>
+        </div>
+        <div class="temp-focus-custom">
+          <input type="number" id="tempFocusCustomMin" placeholder="min" min="1" max="120" value="">
+          <button id="tempFocusCustomBtn" class="temp-focus-dur-btn temp-focus-custom-btn">Set</button>
         </div>
       </div>
       <div id="tempFocusActive" class="temp-focus-active" style="display:none;">
@@ -1087,21 +1373,45 @@
       </div>
       <div class="pomo-controls">
         <button id="pomoStart" class="pomo-btn pomo-start">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
           Start
         </button>
         <button id="pomoPause" class="pomo-btn pomo-pause" style="display:none">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="4" width="4" height="16" />
+            <rect x="14" y="4" width="4" height="16" />
+          </svg>
           Pause
         </button>
         <button id="pomoReset" class="pomo-btn pomo-reset">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10" />
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
           Reset
         </button>
       </div>
       <div class="pomo-sessions">
         <span id="pomoSessions">0</span> sessions completed
       </div>
+    </div>
+
+    <!-- Tasks -->
+    <div class="tasks-section">
+      <div class="tasks-header">
+        <h3 class="tasks-title">Tasks</h3>
+        <span class="tasks-count" id="tasksCount">0/0</span>
+      </div>
+      <div class="tasks-add-row">
+        <input type="text" id="taskInput" placeholder="Add a task..." autocomplete="off">
+        <button id="addTaskBtn" class="tasks-add-btn">+</button>
+      </div>
+      <ul id="taskList" class="task-list"></ul>
     </div>
   </div>
 
