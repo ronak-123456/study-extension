@@ -733,3 +733,120 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadTasks();
 })();
+
+// --- Cloud Sync UI Logic ---
+(function initCloudSync() {
+  const signInBtn = document.getElementById('signInBtn');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const pushSyncBtn = document.getElementById('pushSyncBtn');
+  const pullSyncBtn = document.getElementById('pullSyncBtn');
+  const syncSignedOut = document.getElementById('syncSignedOut');
+  const syncSignedIn = document.getElementById('syncSignedIn');
+  const syncUserEmail = document.getElementById('syncUserEmail');
+  const syncStatus = document.getElementById('syncStatus');
+
+  function showSyncStatus(msg, isError = false) {
+    syncStatus.textContent = msg;
+    syncStatus.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+    setTimeout(() => { syncStatus.textContent = ''; }, 4000);
+  }
+
+  function updateSyncUI(user) {
+    if (user) {
+      syncSignedOut.style.display = 'none';
+      syncSignedIn.style.display = 'block';
+      syncUserEmail.textContent = user.email || user.displayName || 'Google User';
+    } else {
+      syncSignedOut.style.display = 'block';
+      syncSignedIn.style.display = 'none';
+    }
+  }
+
+  // Check auth state on load
+  firebaseOnAuthStateChanged((user) => {
+    updateSyncUI(user);
+  });
+
+  // Sign In
+  signInBtn.addEventListener('click', async () => {
+    signInBtn.disabled = true;
+    signInBtn.textContent = 'Signing in...';
+    try {
+      const user = await signInWithGoogle();
+      updateSyncUI(user);
+      // Auto-sync on first sign-in: pull existing cloud data, or push if none exists
+      const hadCloudData = await pullFromCloud(user.uid);
+      if (!hadCloudData) {
+        await pushToCloud(user.uid);
+        showSyncStatus('Data backed up to cloud ✓');
+      } else {
+        showSyncStatus('Data restored from cloud ✓');
+      }
+    } catch (err) {
+      console.error('[Hocus Focus] Sign-in error:', err);
+      showSyncStatus('Sign-in failed: ' + (err.message || err), true);
+    } finally {
+      signInBtn.disabled = false;
+      signInBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+          <polyline points="10 17 15 12 10 7"/>
+          <line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+        Sign in with Google to Sync`;
+    }
+  });
+
+  // Sign Out
+  signOutBtn.addEventListener('click', async () => {
+    try {
+      await signOutUser();
+      updateSyncUI(null);
+    } catch (err) {
+      console.error('[Hocus Focus] Sign-out error:', err);
+      showSyncStatus('Sign-out failed', true);
+    }
+  });
+
+  // Push to Cloud
+  pushSyncBtn.addEventListener('click', async () => {
+    const user = firebaseCurrentUser();
+    if (!user) return showSyncStatus('Not signed in', true);
+    pushSyncBtn.disabled = true;
+    pushSyncBtn.textContent = '⬆️ Pushing...';
+    try {
+      await pushToCloud(user.uid);
+      showSyncStatus('Data pushed to cloud ✓');
+    } catch (err) {
+      console.error('[Hocus Focus] Push error:', err);
+      showSyncStatus('Push failed: ' + err.message, true);
+    } finally {
+      pushSyncBtn.disabled = false;
+      pushSyncBtn.textContent = '⬆️ Push to Cloud';
+    }
+  });
+
+  // Pull from Cloud
+  pullSyncBtn.addEventListener('click', async () => {
+    const user = firebaseCurrentUser();
+    if (!user) return showSyncStatus('Not signed in', true);
+    pullSyncBtn.disabled = true;
+    pullSyncBtn.textContent = '⬇️ Pulling...';
+    try {
+      const success = await pullFromCloud(user.uid);
+      if (success) {
+        showSyncStatus('Data restored from cloud ✓');
+        // Reload popup to reflect new data
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showSyncStatus('No cloud data found');
+      }
+    } catch (err) {
+      console.error('[Hocus Focus] Pull error:', err);
+      showSyncStatus('Pull failed: ' + err.message, true);
+    } finally {
+      pullSyncBtn.disabled = false;
+      pullSyncBtn.textContent = '⬇️ Pull from Cloud';
+    }
+  });
+})();

@@ -9,11 +9,19 @@
     "idle",
     "notifications",
     "scripting",
-    "alarms"
+    "alarms",
+    "identity"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
+  "oauth2": {
+    "client_id": "1046426794923-2nuoj405mj7foa9hh1dn1h9r4ooblk50.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "openid"
+    ]
+  },
   "background": {
     "service_worker": "background.js"
   },
@@ -51,7 +59,10 @@
       "resources": [
         "logo.jpg",
         "analysis/*",
-        "onboarding.html"
+        "onboarding.html",
+        "lib/firebase-bundle.js",
+        "firebase-config.js",
+        "firebase-client.js"
       ],
       "matches": [
         "<all_urls>"

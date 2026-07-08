@@ -1413,8 +1413,39 @@
       </div>
       <ul id="taskList" class="task-list"></ul>
     </div>
+
+    <!-- Cloud Sync -->
+    <div class="sync-section" style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px;">
+      <div id="syncSignedOut">
+        <button id="signInBtn" class="primary-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+          Sign in with Google to Sync
+        </button>
+        <p style="font-size: 11px; color: var(--muted); text-align: center; margin-top: 6px;">Backup your data across devices</p>
+      </div>
+      <div id="syncSignedIn" style="display: none;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <span style="font-size: 12px; color: var(--muted);">Signed in as <strong id="syncUserEmail" style="color: var(--text);"></strong></span>
+          <button id="signOutBtn" class="icon-btn" title="Sign Out" style="width: auto; padding: 4px 8px; font-size: 11px;">
+            Sign Out
+          </button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button id="pushSyncBtn" class="secondary-btn" style="flex: 1; font-size: 12px;">⬆️ Push to Cloud</button>
+          <button id="pullSyncBtn" class="secondary-btn" style="flex: 1; font-size: 12px;">⬇️ Pull from Cloud</button>
+        </div>
+        <p id="syncStatus" style="font-size: 11px; color: var(--muted); text-align: center; margin-top: 6px;"></p>
+      </div>
+    </div>
   </div>
 
+  <script src="../lib/firebase-bundle.js"></script>
+  <script src="../firebase-config.js"></script>
+  <script src="../firebase-client.js"></script>
   <script src="popup.js"></script>
 </body>
 
