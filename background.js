@@ -1,3 +1,6 @@
+// Import Firebase library and client
+importScripts('lib/firebase-bundle.js', 'firebase-config.js', 'firebase-client.js');
+
 let lastNotifiedDomain = '';
 let lastNotifiedAt = 0;
 const REMINDER_INTERVAL_MINS = 15;
