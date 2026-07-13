@@ -179,17 +179,37 @@ function signOutUser() {
 
 async function pushToCloud(uid) {
   const allData = await chrome.storage.local.get(null);
-  // Don't push internal/temp keys to cloud
+  // Don't push internal/temp/device-local keys to cloud
   delete allData.backups;
   delete allData.firebase_auth;
+  delete allData.lastSyncedAt;
+  delete allData.pomoState;              // in-flight timer — device-local
+  delete allData.theme;                  // per-device preference
+  delete allData.extensionEnabled;       // per-device preference
+  delete allData.firstTipShown;
+  delete allData.onboardingComplete;
+  delete allData.lastSummaryNotifiedDate;
+  delete allData.lastEODSummaryDate;
 
+  const updatedAt = Date.now();
   const db = getFirebaseFirestore();
   const ref = firebase.doc(db, 'users', uid);
-  await firebase.setDoc(ref, {
-    ...allData,
-    lastSyncedAt: Date.now()
-  }, { merge: true });
+  await firebase.setDoc(ref, { ...allData, updatedAt }, { merge: true });
+  // Remember when this device last synced, so we can tell whether the cloud
+  // copy is newer than us on the next sign-in.
+  await chrome.storage.local.set({ lastSyncedAt: updatedAt });
   console.log('[Hocus Focus] Data pushed to cloud');
+}
+
+// Write a cloud document into local storage (stripping sync metadata) and
+// record the sync timestamp for this device.
+async function applyCloudData(cloudData) {
+  const data = { ...cloudData };
+  const updatedAt = data.updatedAt || Date.now();
+  delete data.updatedAt;
+  delete data.lastSyncedAt; // legacy field from older versions
+  await chrome.storage.local.set(data);
+  await chrome.storage.local.set({ lastSyncedAt: updatedAt });
 }
 
 async function pullFromCloud(uid) {
@@ -197,11 +217,36 @@ async function pullFromCloud(uid) {
   const ref = firebase.doc(db, 'users', uid);
   const snap = await firebase.getDoc(ref);
   if (snap.exists()) {
-    const cloudData = snap.data();
-    delete cloudData.lastSyncedAt; // don't overwrite local with sync timestamp
-    await chrome.storage.local.set(cloudData);
+    await applyCloudData(snap.data());
     console.log('[Hocus Focus] Data pulled from cloud');
     return true;
   }
   return false;
+}
+
+// Decide whether to pull or push on sign-in based on timestamps, so we don't
+// blindly overwrite newer data on either side.
+// Returns 'pulled', 'pushed', or 'pushed-empty'.
+async function syncOnSignIn(uid) {
+  const db = getFirebaseFirestore();
+  const ref = firebase.doc(db, 'users', uid);
+  const snap = await firebase.getDoc(ref);
+
+  if (!snap.exists()) {
+    await pushToCloud(uid);
+    return 'pushed-empty';
+  }
+
+  const cloud = snap.data();
+  const cloudUpdatedAt = cloud.updatedAt || 0;
+  const { lastSyncedAt = 0 } = await chrome.storage.local.get({ lastSyncedAt: 0 });
+
+  // Cloud is newer than the last data this device synced -> take the cloud copy.
+  // Otherwise our local copy is at least as fresh -> push it up.
+  if (cloudUpdatedAt > lastSyncedAt) {
+    await applyCloudData(cloud);
+    return 'pulled';
+  }
+  await pushToCloud(uid);
+  return 'pushed';
 }
