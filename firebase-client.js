@@ -105,41 +105,64 @@ async function firestoreDelete(collectionName, docId) {
 initFirebase();
 console.log('[Hocus Focus] Firebase initialized successfully');
 
-// --- Google Sign-In via chrome.identity ---
+// --- Google Sign-In via chrome.identity.launchWebAuthFlow ---
+// Uses launchWebAuthFlow (supported in BOTH Chrome and Edge) instead of
+// getAuthToken (Chrome-only). The OAuth client below MUST belong to the same
+// Google Cloud project as the Firebase project (jerry-95215), otherwise
+// Firebase rejects the credential with auth/invalid-credential.
+
+// Web application OAuth client ID from the Firebase project (jerry-95215).
+// Get it at: Firebase Console -> Authentication -> Sign-in method -> Google
+//            -> Web SDK configuration -> "Web client ID"
+const GOOGLE_WEB_CLIENT_ID = '109296961407-qq2qpiqg5uhi8ruldrrg0m4e3p4ehnu4.apps.googleusercontent.com';
 
 function signInWithGoogle() {
   return new Promise((resolve, reject) => {
-    chrome.identity.getAuthToken({ interactive: true }, async (token) => {
-      if (chrome.runtime.lastError || !token) {
-        reject(chrome.runtime.lastError || new Error("No token returned"));
+    const redirectUri = chrome.identity.getRedirectURL();
+    // This exact value must be registered as an Authorized redirect URI on the Web client:
+    console.log('[Hocus Focus] OAuth redirect URI to register:', redirectUri);
+
+    // Google requires a nonce when an id_token is requested via the implicit flow.
+    const nonce = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+    const authParams = new URLSearchParams({
+      client_id: GOOGLE_WEB_CLIENT_ID,
+      response_type: 'id_token token',
+      redirect_uri: redirectUri,
+      scope: 'openid email profile',
+      nonce: nonce,
+      prompt: 'select_account'
+    });
+    const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + authParams.toString();
+
+    chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, async (responseUrl) => {
+      if (chrome.runtime.lastError || !responseUrl) {
+        reject(chrome.runtime.lastError || new Error('Sign-in was cancelled or failed'));
         return;
       }
       try {
-        const credential = firebase.GoogleAuthProvider.credential(null, token);
+        // Google returns tokens in the URL fragment (#id_token=...&access_token=...)
+        const fragment = new URL(responseUrl).hash.substring(1);
+        const params = new URLSearchParams(fragment);
+        const errParam = params.get('error');
+        if (errParam) {
+          reject(new Error('Google returned error: ' + errParam));
+          return;
+        }
+        const idToken = params.get('id_token');
+        const accessToken = params.get('access_token');
+        if (!idToken) {
+          reject(new Error('No id_token in Google response'));
+          return;
+        }
+        const credential = firebase.GoogleAuthProvider.credential(idToken, accessToken);
         const auth = getFirebaseAuth();
         const result = await firebase.signInWithCredential(auth, credential);
         resolve(result.user);
       } catch (err) {
-        // If token is stale, revoke and retry once
-        if (err.code === 'auth/invalid-credential') {
-          chrome.identity.removeCachedAuthToken({ token }, () => {
-            chrome.identity.getAuthToken({ interactive: true }, async (newToken) => {
-              if (chrome.runtime.lastError || !newToken) {
-                reject(chrome.runtime.lastError || new Error("No token on retry"));
-                return;
-              }
-              try {
-                const cred = firebase.GoogleAuthProvider.credential(null, newToken);
-                const result = await firebase.signInWithCredential(auth, cred);
-                resolve(result.user);
-              } catch (retryErr) {
-                reject(retryErr);
-              }
-            });
-          });
-        } else {
-          reject(err);
-        }
+        reject(err);
       }
     });
   });
@@ -148,18 +171,7 @@ function signInWithGoogle() {
 function signOutUser() {
   return new Promise((resolve, reject) => {
     const auth = getFirebaseAuth();
-    firebase.signOut(auth).then(() => {
-      // Also revoke the Chrome identity token
-      chrome.identity.getAuthToken({ interactive: false }, (token) => {
-        if (token) {
-          chrome.identity.removeCachedAuthToken({ token }, () => {
-            resolve();
-          });
-        } else {
-          resolve();
-        }
-      });
-    }).catch(reject);
+    firebase.signOut(auth).then(resolve).catch(reject);
   });
 }
 
