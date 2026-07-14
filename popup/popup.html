@@ -15,8 +15,8 @@
       --primary: #6abf9b;
       --primary-strong: #57ae8b;
       --primary-soft: #d8f2e5;
-      --yellow: #f59e0b;
-      --yellow-soft: #fef3c7;
+      --yellow: #EDB72B;
+      --yellow-soft: #fdf6e3;
       --line: #cde8db;
       --danger: #d95d5d;
       --danger-soft: #ffe9e9;
@@ -95,7 +95,7 @@
       padding: 4px;
       background: var(--primary);
       border-radius: 22px;
-      box-shadow: 0 0 20px rgba(165, 233, 221, 0.4), 0 8px 16px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 20px rgba(106, 191, 155, 0.3), 0 8px 16px rgba(0, 0, 0, 0.1);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -114,6 +114,9 @@
       font-size: 17px;
       color: var(--text);
       letter-spacing: 0.2px;
+      border-bottom: 2px solid var(--primary);
+      display: inline-block;
+      padding-bottom: 2px;
     }
 
     body.dark h2 {
@@ -187,7 +190,7 @@
 
     #domainInput:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(165, 233, 221, 0.2);
+      box-shadow: 0 0 0 3px rgba(106, 191, 155, 0.2);
     }
 
     body.dark #domainInput {
@@ -437,6 +440,10 @@
 
     input:checked+.slider:before {
       transform: translateX(22px);
+    }
+
+    input:checked+.slider {
+      background-color: var(--yellow);
     }
 
     .toggle-label {
