@@ -1,5 +1,11 @@
-// Import Firebase library and client
-importScripts('lib/firebase-bundle.js', 'firebase-config.js', 'firebase-client.js');
+// Import Firebase library and client.
+// Chrome/Edge/Brave/Opera run this as a service worker, where importScripts is
+// available. Firefox runs background as an event page (no importScripts) and
+// loads these libraries via the "scripts" array in manifest.firefox.json, so we
+// guard the call.
+if (typeof importScripts === 'function') {
+  importScripts('lib/firebase-bundle.js', 'firebase-config.js', 'firebase-client.js');
+}
 
 const REMINDER_INTERVAL_MINS = 15;
 const NOTIFICATION_COOLDOWN_MS = REMINDER_INTERVAL_MINS * 60 * 1000;
