@@ -1,4 +1,12 @@
-const today = new Date().toISOString().split('T')[0];
+// Local calendar date as YYYY-MM-DD (matches the keys written by background.js).
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const today = localDateStr();
 
 // Greeting based on time of day
 function setGreeting() {
@@ -26,7 +34,7 @@ function calculateStreak(stats, studyDomains) {
   for (let i = 0; i < 365; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = localDateStr(d);
     const dayStats = stats[dateStr] || {};
     let focusSec = 0;
     Object.entries(dayStats).forEach(([domain, seconds]) => {

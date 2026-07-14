@@ -105,41 +105,64 @@ async function firestoreDelete(collectionName, docId) {
 initFirebase();
 console.log('[Hocus Focus] Firebase initialized successfully');
 
-// --- Google Sign-In via chrome.identity ---
+// --- Google Sign-In via chrome.identity.launchWebAuthFlow ---
+// Uses launchWebAuthFlow (supported in BOTH Chrome and Edge) instead of
+// getAuthToken (Chrome-only). The OAuth client below MUST belong to the same
+// Google Cloud project as the Firebase project (jerry-95215), otherwise
+// Firebase rejects the credential with auth/invalid-credential.
+
+// Web application OAuth client ID from the Firebase project (jerry-95215).
+// Get it at: Firebase Console -> Authentication -> Sign-in method -> Google
+//            -> Web SDK configuration -> "Web client ID"
+const GOOGLE_WEB_CLIENT_ID = '109296961407-qq2qpiqg5uhi8ruldrrg0m4e3p4ehnu4.apps.googleusercontent.com';
 
 function signInWithGoogle() {
   return new Promise((resolve, reject) => {
-    chrome.identity.getAuthToken({ interactive: true }, async (token) => {
-      if (chrome.runtime.lastError || !token) {
-        reject(chrome.runtime.lastError || new Error("No token returned"));
+    const redirectUri = chrome.identity.getRedirectURL();
+    // This exact value must be registered as an Authorized redirect URI on the Web client:
+    console.log('[Hocus Focus] OAuth redirect URI to register:', redirectUri);
+
+    // Google requires a nonce when an id_token is requested via the implicit flow.
+    const nonce = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+    const authParams = new URLSearchParams({
+      client_id: GOOGLE_WEB_CLIENT_ID,
+      response_type: 'id_token token',
+      redirect_uri: redirectUri,
+      scope: 'openid email profile',
+      nonce: nonce,
+      prompt: 'select_account'
+    });
+    const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + authParams.toString();
+
+    chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, async (responseUrl) => {
+      if (chrome.runtime.lastError || !responseUrl) {
+        reject(chrome.runtime.lastError || new Error('Sign-in was cancelled or failed'));
         return;
       }
       try {
-        const credential = firebase.GoogleAuthProvider.credential(null, token);
+        // Google returns tokens in the URL fragment (#id_token=...&access_token=...)
+        const fragment = new URL(responseUrl).hash.substring(1);
+        const params = new URLSearchParams(fragment);
+        const errParam = params.get('error');
+        if (errParam) {
+          reject(new Error('Google returned error: ' + errParam));
+          return;
+        }
+        const idToken = params.get('id_token');
+        const accessToken = params.get('access_token');
+        if (!idToken) {
+          reject(new Error('No id_token in Google response'));
+          return;
+        }
+        const credential = firebase.GoogleAuthProvider.credential(idToken, accessToken);
         const auth = getFirebaseAuth();
         const result = await firebase.signInWithCredential(auth, credential);
         resolve(result.user);
       } catch (err) {
-        // If token is stale, revoke and retry once
-        if (err.code === 'auth/invalid-credential') {
-          chrome.identity.removeCachedAuthToken({ token }, () => {
-            chrome.identity.getAuthToken({ interactive: true }, async (newToken) => {
-              if (chrome.runtime.lastError || !newToken) {
-                reject(chrome.runtime.lastError || new Error("No token on retry"));
-                return;
-              }
-              try {
-                const cred = firebase.GoogleAuthProvider.credential(null, newToken);
-                const result = await firebase.signInWithCredential(auth, cred);
-                resolve(result.user);
-              } catch (retryErr) {
-                reject(retryErr);
-              }
-            });
-          });
-        } else {
-          reject(err);
-        }
+        reject(err);
       }
     });
   });
@@ -148,18 +171,7 @@ function signInWithGoogle() {
 function signOutUser() {
   return new Promise((resolve, reject) => {
     const auth = getFirebaseAuth();
-    firebase.signOut(auth).then(() => {
-      // Also revoke the Chrome identity token
-      chrome.identity.getAuthToken({ interactive: false }, (token) => {
-        if (token) {
-          chrome.identity.removeCachedAuthToken({ token }, () => {
-            resolve();
-          });
-        } else {
-          resolve();
-        }
-      });
-    }).catch(reject);
+    firebase.signOut(auth).then(resolve).catch(reject);
   });
 }
 
@@ -167,17 +179,37 @@ function signOutUser() {
 
 async function pushToCloud(uid) {
   const allData = await chrome.storage.local.get(null);
-  // Don't push internal/temp keys to cloud
+  // Don't push internal/temp/device-local keys to cloud
   delete allData.backups;
   delete allData.firebase_auth;
+  delete allData.lastSyncedAt;
+  delete allData.pomoState;              // in-flight timer — device-local
+  delete allData.theme;                  // per-device preference
+  delete allData.extensionEnabled;       // per-device preference
+  delete allData.firstTipShown;
+  delete allData.onboardingComplete;
+  delete allData.lastSummaryNotifiedDate;
+  delete allData.lastEODSummaryDate;
 
+  const updatedAt = Date.now();
   const db = getFirebaseFirestore();
   const ref = firebase.doc(db, 'users', uid);
-  await firebase.setDoc(ref, {
-    ...allData,
-    lastSyncedAt: Date.now()
-  }, { merge: true });
+  await firebase.setDoc(ref, { ...allData, updatedAt }, { merge: true });
+  // Remember when this device last synced, so we can tell whether the cloud
+  // copy is newer than us on the next sign-in.
+  await chrome.storage.local.set({ lastSyncedAt: updatedAt });
   console.log('[Hocus Focus] Data pushed to cloud');
+}
+
+// Write a cloud document into local storage (stripping sync metadata) and
+// record the sync timestamp for this device.
+async function applyCloudData(cloudData) {
+  const data = { ...cloudData };
+  const updatedAt = data.updatedAt || Date.now();
+  delete data.updatedAt;
+  delete data.lastSyncedAt; // legacy field from older versions
+  await chrome.storage.local.set(data);
+  await chrome.storage.local.set({ lastSyncedAt: updatedAt });
 }
 
 async function pullFromCloud(uid) {
@@ -185,11 +217,36 @@ async function pullFromCloud(uid) {
   const ref = firebase.doc(db, 'users', uid);
   const snap = await firebase.getDoc(ref);
   if (snap.exists()) {
-    const cloudData = snap.data();
-    delete cloudData.lastSyncedAt; // don't overwrite local with sync timestamp
-    await chrome.storage.local.set(cloudData);
+    await applyCloudData(snap.data());
     console.log('[Hocus Focus] Data pulled from cloud');
     return true;
   }
   return false;
+}
+
+// Decide whether to pull or push on sign-in based on timestamps, so we don't
+// blindly overwrite newer data on either side.
+// Returns 'pulled', 'pushed', or 'pushed-empty'.
+async function syncOnSignIn(uid) {
+  const db = getFirebaseFirestore();
+  const ref = firebase.doc(db, 'users', uid);
+  const snap = await firebase.getDoc(ref);
+
+  if (!snap.exists()) {
+    await pushToCloud(uid);
+    return 'pushed-empty';
+  }
+
+  const cloud = snap.data();
+  const cloudUpdatedAt = cloud.updatedAt || 0;
+  const { lastSyncedAt = 0 } = await chrome.storage.local.get({ lastSyncedAt: 0 });
+
+  // Cloud is newer than the last data this device synced -> take the cloud copy.
+  // Otherwise our local copy is at least as fresh -> push it up.
+  if (cloudUpdatedAt > lastSyncedAt) {
+    await applyCloudData(cloud);
+    return 'pulled';
+  }
+  await pushToCloud(uid);
+  return 'pushed';
 }
