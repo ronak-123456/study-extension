@@ -256,7 +256,7 @@ if (window._hocusFocusLoaded) { /* skip */ } else {
         <span class="ff-subtitle">Hocus Focus</span>
       </div>
     </div>
-    <p class="ff-message">${customMessage || `You wandered onto <strong>${domain}</strong>. Time to get back to work.`}</p>
+    <p class="ff-message">${customMessage ? escapeHtml(customMessage) : `You wandered onto <strong>${escapeHtml(domain)}</strong>. Time to get back to work.`}</p>
     <div class="ff-btn-row">
       <button class="ff-btn-primary">Exit This Site</button>
       <button class="ff-btn-dismiss">Stay A Little More</button>
@@ -265,8 +265,7 @@ if (window._hocusFocusLoaded) { /* skip */ } else {
 
     card.querySelector('.ff-btn-primary').onclick = () => {
       dismissNotification(container);
-      if (window.history.length > 1) window.history.back();
-      else window.close();
+      leaveSite();
     };
     card.querySelector('.ff-btn-dismiss').onclick = () => dismissNotification(container);
 
@@ -352,9 +351,9 @@ if (window._hocusFocusLoaded) { /* skip */ } else {
     <div class="ff-logo-wrap">
       <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Hocus Focus">
     </div>
-    <span class="ff-time-badge">${minutes} min on ${domain.replace('www.', '')}</span>
+    <span class="ff-time-badge">${minutes} min on ${escapeHtml(domain.replace('www.', ''))}</span>
     <h3 class="ff-title">${emoji} ${title}</h3>
-    <p class="ff-message">${message}</p>
+    <p class="ff-message">${escapeHtml(message)}</p>
     <div class="ff-btn-row">
       <button class="ff-btn ff-btn-leave">Leave & Focus 🎯</button>
       <button class="ff-btn ff-btn-continue">Continue</button>
@@ -363,12 +362,7 @@ if (window._hocusFocusLoaded) { /* skip */ } else {
 
     card.querySelector('.ff-btn-leave').onclick = () => {
       dismissNotification(container);
-      // Try to go back or close
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        window.close();
-      }
+      leaveSite();
     };
 
     card.querySelector('.ff-btn-continue').onclick = () => dismissNotification(container);
@@ -449,9 +443,9 @@ if (window._hocusFocusLoaded) { /* skip */ } else {
     <div class="ff-logo-wrap">
       <img src="${chrome.runtime.getURL('logo.jpg')}" alt="Hocus Focus">
     </div>
-    <span class="ff-time-badge">🎯 ${timeLabel} focused on ${domain.replace('www.', '')}</span>
+    <span class="ff-time-badge">🎯 ${timeLabel} focused on ${escapeHtml(domain.replace('www.', ''))}</span>
     <h3 class="ff-title">🌟 Great Work!</h3>
-    <p class="ff-message">${message}</p>
+    <p class="ff-message">${escapeHtml(message)}</p>
     <button class="ff-btn ff-btn-primary">Keep Going! 🚀</button>
   `;
 
@@ -469,6 +463,23 @@ if (window._hocusFocusLoaded) { /* skip */ } else {
   function removeExisting() {
     const existing = document.getElementById('hocus-focus-nudge-container');
     if (existing) existing.remove();
+  }
+
+  // Escape user/site-supplied text before putting it in innerHTML.
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  // Leave the current distraction: go back if there's history, otherwise ask
+  // the background worker to close the tab (window.close() is a no-op here).
+  function leaveSite() {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      try { chrome.runtime.sendMessage({ action: 'closeActiveTab' }); } catch (e) { }
+    }
   }
 
   function dismissNotification(container) {
@@ -560,7 +571,7 @@ if (window._hocusFocusLoaded) { /* skip */ } else {
     card.className = 'ff-notification-card';
     card.innerHTML = `
     <span class="ff-countdown">${countdownText}</span>
-    <span class="ff-limit-label">${domain.replace('www.', '')} — ${limitStr}/day limit</span>
+    <span class="ff-limit-label">${escapeHtml(domain.replace('www.', ''))} — ${limitStr}/day limit</span>
     <h3 class="ff-title">${emoji} ${title}</h3>
     <p class="ff-message">${isExceeded ? 'Your daily allowance is finished. Close this tab to stay on track!' : 'Wrap up what you\'re doing — time is almost up.'}</p>
     <div class="ff-btn-row">
@@ -571,8 +582,7 @@ if (window._hocusFocusLoaded) { /* skip */ } else {
 
     card.querySelector('.ff-btn-leave').onclick = () => {
       dismissNotification(container);
-      if (window.history.length > 1) window.history.back();
-      else window.close();
+      leaveSite();
     };
 
     const continueBtn = card.querySelector('.ff-btn-continue');

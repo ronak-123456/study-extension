@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Hocus Focus",
   "version": "3.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAno+sdJiHHH9P3wxl8oYreqmE+LVTs0Zrl2lCM3Lv6yZVGWaw4HCE54nQ8YA+V0OEhNqZIGkNrth7ZaPocN0tPCVZq/fcJicKXig2PJZdQY+OktBnV58+skagwlBJ3uYktdgb+XPVNqqaAV32QNLi/V7rqT1Of0JLKJmF1+MSQAvr1oqkj8AYIhGmPKPVwMU3p/k0vM1vgIAp5erFUCL1e8sQFRRxo0bRt3ZAKyz1uEgA0vi+bB5w3P7Gqk+buDJ0uivC8USj9n86GZvf9NbuXTXNUz1gI985981Cm8Vbsf6tJJjlusevO9fef4W6EHVGLJunHGv8guFd529ZPeqs9QIDAQAB",
   "description": "Track focus domains and nudge you back when switching to distractions. Hocus Focus!",
   "permissions": [
     "tabs",

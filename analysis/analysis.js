@@ -1,3 +1,11 @@
+// Local calendar date as YYYY-MM-DD (matches the keys written by background.js).
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 let currentViewDate = new Date();
 let currentViewMode = 'daily'; // 'daily' or 'weekly'
 
@@ -149,7 +157,7 @@ function calculateStreak(stats, studyDomains) {
     for (let i = 0; i < 365; i++) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = localDateStr(d);
         const dayStats = stats[dateStr] || {};
         let focusSec = 0;
         Object.entries(dayStats).forEach(([domain, seconds]) => {
@@ -165,7 +173,7 @@ function calculateStreak(stats, studyDomains) {
 
 function updateDashboard() {
     const isWeekly = currentViewMode === 'weekly';
-    const dateString = currentViewDate.toISOString().split('T')[0];
+    const dateString = localDateStr(currentViewDate);
 
     // Update Date Display
     if (isWeekly) {
@@ -205,7 +213,7 @@ function updateDashboard() {
             for (let i = 0; i < 7; i++) {
                 const d = new Date(currentViewDate);
                 d.setDate(d.getDate() - i);
-                datesToProcess.push(d.toISOString().split('T')[0]);
+                datesToProcess.push(localDateStr(d));
             }
         } else {
             datesToProcess.push(dateString);
@@ -362,13 +370,13 @@ function updateTrends(isWeekly, focus, distraction, count) {
             for (let i = 7; i < 14; i++) {
                 const d = new Date(currentViewDate);
                 d.setDate(d.getDate() - i);
-                prevDates.push(d.toISOString().split('T')[0]);
+                prevDates.push(localDateStr(d));
             }
         } else {
             // Compare today vs yesterday
             const prev = new Date(currentViewDate);
             prev.setDate(prev.getDate() - 1);
-            prevDates.push(prev.toISOString().split('T')[0]);
+            prevDates.push(localDateStr(prev));
         }
 
         prevDates.forEach(date => {
@@ -1014,7 +1022,7 @@ function computeMilestoneData(stats, studyDomains, hourlyStats) {
     for (let i = 0; i < 365; i++) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = localDateStr(d);
         const dayStats = stats[dateStr] || {};
         let focusSec = 0;
         Object.entries(dayStats).forEach(([domain, seconds]) => {
@@ -1336,7 +1344,7 @@ function computeCustomMilestoneProgress(stats, studyDomains, hourlyStats) {
     for (let i = 0; i < 365; i++) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = localDateStr(d);
         const dayStats = stats[dateStr] || {};
         let focusSec = 0;
         Object.entries(dayStats).forEach(([domain, seconds]) => {

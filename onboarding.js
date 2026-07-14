@@ -88,12 +88,9 @@ function finishSetup() {
     studyDomains: domains,
     onboardingComplete: true
   }, () => {
-    try {
-      window.close();
-    } catch(e) {}
-    setTimeout(() => {
-      window.location.href = chrome.runtime.getURL('analysis/analysis.html');
-    }, 200);
+    // This runs in a normal tab, so window.close() is a no-op — just navigate
+    // to the dashboard.
+    window.location.href = chrome.runtime.getURL('analysis/analysis.html');
   });
 }
 

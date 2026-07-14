@@ -15,8 +15,8 @@
       --primary: #6abf9b;
       --primary-strong: #57ae8b;
       --primary-soft: #d8f2e5;
-      --yellow: #f59e0b;
-      --yellow-soft: #fef3c7;
+      --yellow: #EDB72B;
+      --yellow-soft: #fdf6e3;
       --line: #cde8db;
       --danger: #d95d5d;
       --danger-soft: #ffe9e9;
@@ -50,6 +50,9 @@
 
     body {
       width: 340px;
+      /* Stable minimum height so the popup doesn't collapse and jump size
+         during the reload after "Pull from Cloud". */
+      min-height: 500px;
       margin: 0;
       padding: 14px;
       font-family: "Avenir Next", "Segoe UI", Roboto, sans-serif;
@@ -92,7 +95,7 @@
       padding: 4px;
       background: var(--primary);
       border-radius: 22px;
-      box-shadow: 0 0 20px rgba(165, 233, 221, 0.4), 0 8px 16px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 20px rgba(106, 191, 155, 0.3), 0 8px 16px rgba(0, 0, 0, 0.1);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -111,6 +114,9 @@
       font-size: 17px;
       color: var(--text);
       letter-spacing: 0.2px;
+      border-bottom: 2px solid var(--primary);
+      display: inline-block;
+      padding-bottom: 2px;
     }
 
     body.dark h2 {
@@ -184,7 +190,7 @@
 
     #domainInput:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(165, 233, 221, 0.2);
+      box-shadow: 0 0 0 3px rgba(106, 191, 155, 0.2);
     }
 
     body.dark #domainInput {
@@ -356,6 +362,21 @@
       transform: translateY(0);
     }
 
+    .analysis-btn {
+      background: var(--yellow);
+      color: #1a1a1a;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .analysis-btn:hover {
+      box-shadow: 0 6px 16px rgba(245, 158, 11, 0.45);
+    }
+
+    body.dark .analysis-btn {
+      background: var(--yellow);
+      color: #1a1a1a;
+    }
+
     /* Toggle Switch Styles */
     .header-actions {
       display: flex;
@@ -419,6 +440,10 @@
 
     input:checked+.slider:before {
       transform: translateX(22px);
+    }
+
+    input:checked+.slider {
+      background-color: var(--yellow);
     }
 
     .toggle-label {
@@ -498,14 +523,7 @@
     .allowance-title::before,
     .temp-focus-title::before,
     .tasks-title::before {
-      content: '';
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: var(--yellow);
-      border-radius: 50%;
-      margin-right: 6px;
-      vertical-align: middle;
+      display: none;
     }
 
     .pomo-tabs {
@@ -1300,7 +1318,7 @@
 
     <ul id="domainList"></ul>
 
-    <button id="viewStatsBtn" class="primary-btn" style="margin-top: 14px;">View Analysis Dashboard</button>
+    <button id="viewStatsBtn" class="primary-btn analysis-btn" style="margin-top: 14px;">View Analysis Dashboard</button>
 
     <!-- Allowances Section -->
     <div class="allowance-section">
@@ -1416,29 +1434,59 @@
 
     <!-- Cloud Sync -->
     <div class="sync-section" style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px;">
+      <h3 style="font-size: 13px; font-weight: 700; color: var(--text); margin: 0 0 12px 0; display: flex; align-items: center; gap: 6px;">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        </svg>
+        Cloud Sync
+      </h3>
+
       <div id="syncSignedOut">
-        <button id="signInBtn" class="primary-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-            <polyline points="10 17 15 12 10 7"/>
-            <line x1="15" y1="12" x2="3" y2="12"/>
+        <button id="signInBtn" class="primary-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 11px 16px;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
-          Sign in with Google to Sync
+          Sign in with Google
         </button>
-        <p style="font-size: 11px; color: var(--muted); text-align: center; margin-top: 6px;">Backup your data across devices</p>
+        <p style="font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; margin-bottom: 0;">Sync and backup your data across devices</p>
       </div>
+
       <div id="syncSignedIn" style="display: none;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-          <span style="font-size: 12px; color: var(--muted);">Signed in as <strong id="syncUserEmail" style="color: var(--text);"></strong></span>
-          <button id="signOutBtn" class="icon-btn" title="Sign Out" style="width: auto; padding: 4px 8px; font-size: 11px;">
-            Sign Out
+        <div style="background: var(--primary-soft); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--primary-strong)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span style="font-size: 12px; color: var(--text); font-weight: 500;" id="syncUserEmail"></span>
+            </div>
+            <button id="signOutBtn" style="background: none; border: none; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button id="pushSyncBtn" class="secondary-btn" style="flex: 1; font-size: 12px; margin-bottom: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 10px;">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="17 11 12 6 7 11"/>
+              <line x1="12" y1="6" x2="12" y2="18"/>
+            </svg>
+            Push
+          </button>
+          <button id="pullSyncBtn" class="secondary-btn" style="flex: 1; font-size: 12px; margin-bottom: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 10px;">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="7 13 12 18 17 13"/>
+              <line x1="12" y1="18" x2="12" y2="6"/>
+            </svg>
+            Pull
           </button>
         </div>
-        <div style="display: flex; gap: 8px;">
-          <button id="pushSyncBtn" class="secondary-btn" style="flex: 1; font-size: 12px;">⬆️ Push to Cloud</button>
-          <button id="pullSyncBtn" class="secondary-btn" style="flex: 1; font-size: 12px;">⬇️ Pull from Cloud</button>
-        </div>
-        <p id="syncStatus" style="font-size: 11px; color: var(--muted); text-align: center; margin-top: 6px;"></p>
+        <p id="syncStatus" style="font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; margin-bottom: 0;"></p>
       </div>
     </div>
   </div>

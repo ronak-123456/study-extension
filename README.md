@@ -147,11 +147,23 @@ study-extension/
 
 ## ☁️ Cloud Sync Setup
 
+### Browser Compatibility
+
+| Browser | Sign-In Support |
+|---------|----------------|
+| Chrome | Works out of the box |
+| Edge | Works out of the box |
+| Brave | Works, but you need to enable Google Sign-In in `brave://settings/extensions` |
+| Firefox | Not supported |
+| Safari | Not supported |
+
+> **Note:** Google Sign-In uses the `chrome.identity` API which is only available in Chromium-based browsers.
+
 ### For Users
 1. Click the extension popup → scroll to bottom
 2. Click **"Sign in with Google to Sync"**
 3. First sign-in auto-backs up your data
-4. Use ⬆️ Push / ⬇️ Pull buttons anytime for manual sync
+4. Use Push / Pull buttons anytime for manual sync
 
 ### For Developers (Your Own Firebase)
 1. Create a project at [Firebase Console](https://console.firebase.google.com)

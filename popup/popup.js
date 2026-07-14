@@ -1,4 +1,17 @@
 // popup.js
+
+// Let the background worker know the popup is open, so it won't treat the
+// focus-loss from opening this popup as "left the browser" and reset tracking.
+try { chrome.runtime.connect({ name: 'hocus-popup' }); } catch (e) { }
+
+// Local calendar date as YYYY-MM-DD (matches the keys written by background.js).
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const domainInput = document.getElementById('domainInput');
   const addCustomBtn = document.getElementById('addCustomBtn');
@@ -49,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tab && tab.url) {
         const url = new URL(tab.url);
         if (url.protocol.startsWith('http')) {
-          addDomain(url.hostname.toLowerCase(), true);
+          addDomain(url.hostname.toLowerCase().replace(/^www\./, ''), true);
         } else {
           setStatus('Only http/https tabs are supported.', 'error');
         }
@@ -106,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
         normalized = 'https://' + normalized;
       }
-      return new URL(normalized).hostname.toLowerCase();
+      return new URL(normalized).hostname.toLowerCase().replace(/^www\./, '');
     } catch (e) {
       return '';
     }
@@ -326,15 +339,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function loadAllowances() {
-    const today = new Date().toISOString().split('T')[0];
-    chrome.storage.local.get({ allowances: {}, dailyStats: {} }, (data) => {
+    const today = localDateStr();
+    chrome.storage.local.get({ allowances: {}, dailyStats: {}, tempFocusLog: {} }, (data) => {
       const allowances = data.allowances || {};
       const todayStats = data.dailyStats[today] || {};
-      renderAllowances(allowances, todayStats);
+      const todayTempFocus = data.tempFocusLog[today] || {};
+      renderAllowances(allowances, todayStats, todayTempFocus);
     });
   }
 
-  function renderAllowances(allowances, todayStats) {
+  function renderAllowances(allowances, todayStats, todayTempFocus = {}) {
     allowanceList.innerHTML = '';
 
     const domains = Object.keys(allowances);
@@ -353,7 +367,10 @@ document.addEventListener('DOMContentLoaded', () => {
       let usedSeconds = 0;
       Object.entries(todayStats).forEach(([d, seconds]) => {
         if (d === domain || d.endsWith('.' + domain)) {
-          usedSeconds += seconds;
+          // Time spent under a temp focus pass shouldn't count against the limit
+          // (matches the background enforcement in checkAllowance).
+          const tempSec = todayTempFocus[d] || 0;
+          usedSeconds += Math.max(0, seconds - tempSec);
         }
       });
 
@@ -429,6 +446,9 @@ document.addEventListener('DOMContentLoaded', () => {
         running = true;
         startBtn.style.display = 'none';
         pauseBtn.style.display = 'flex';
+        // Re-arm the background completion alarm (idempotent) in case the worker
+        // was restarted; endsAt is absolute.
+        chrome.runtime.sendMessage({ action: 'pomodoroStart', endsAt: data.pomoState.startedAt + data.pomoState.timeLeft * 1000 });
         startInterval();
       } else {
         onComplete();
@@ -452,6 +472,9 @@ document.addEventListener('DOMContentLoaded', () => {
     startBtn.style.display = 'none';
     pauseBtn.style.display = 'flex';
     saveState();
+    // Let the background worker own completion so it fires even if this popup
+    // closes. The interval below is only for the live on-screen countdown.
+    chrome.runtime.sendMessage({ action: 'pomodoroStart', endsAt: Date.now() + timeLeft * 1000 });
     startInterval();
   });
 
@@ -461,6 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startBtn.style.display = 'flex';
     clearInterval(intervalId);
     chrome.storage.local.set({ pomoState: null });
+    chrome.runtime.sendMessage({ action: 'pomodoroStop' });
   });
 
   resetBtn.addEventListener('click', () => {
@@ -470,6 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
     pauseBtn.style.display = 'none';
     startBtn.style.display = 'flex';
     chrome.storage.local.set({ pomoState: null });
+    chrome.runtime.sendMessage({ action: 'pomodoroStop' });
     updateDisplay();
   });
 
@@ -487,21 +512,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function onComplete() {
+    // The background worker handles the session count + notification and clears
+    // pomoState (so it works with the popup closed). Here we only reset the UI —
+    // don't touch pomoState, or we'd race the worker into miscounting the mode.
     running = false;
     pauseBtn.style.display = 'none';
     startBtn.style.display = 'flex';
-    chrome.storage.local.set({ pomoState: null });
-    if (currentMode === 'focus') {
-      chrome.storage.local.get({ pomoSessions: 0 }, (data) => {
-        const count = data.pomoSessions + 1;
-        chrome.storage.local.set({ pomoSessions: count });
-        sessionsEl.textContent = count;
-      });
-      chrome.notifications.create({ type: 'basic', iconUrl: chrome.runtime.getURL('icons/icon128.png'), title: 'Pomodoro Complete!', message: 'Great work! Take a break.', priority: 2 });
-    } else {
-      chrome.notifications.create({ type: 'basic', iconUrl: chrome.runtime.getURL('icons/icon128.png'), title: 'Break Over!', message: 'Time to focus again.', priority: 2 });
-    }
+    updateDisplay();
   }
+
+  // Keep the session counter live when the background worker completes a session.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.pomoSessions) {
+      sessionsEl.textContent = changes.pomoSessions.newValue;
+    }
+  });
 
   function saveState() {
     chrome.storage.local.set({ pomoState: { mode: currentMode, timeLeft, startedAt: Date.now(), running: true } });
@@ -538,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab && tab.url) {
         const url = new URL(tab.url);
-        return url.hostname.toLowerCase();
+        return url.hostname.toLowerCase().replace(/^www\./, '');
       }
     } catch (e) {}
     return null;
@@ -656,8 +681,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const taskList = document.getElementById('taskList');
   const tasksCount = document.getElementById('tasksCount');
 
+  function genId() {
+    return (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : 't' + Date.now() + Math.random().toString(36).slice(2);
+  }
+
   function loadTasks() {
     chrome.storage.local.get({ tasks: [] }, (data) => {
+      // Backfill ids on any legacy/synced tasks so handlers can key off them.
+      let changed = false;
+      data.tasks.forEach(t => { if (!t.id) { t.id = genId(); changed = true; } });
+      if (changed) chrome.storage.local.set({ tasks: data.tasks });
       renderTasks(data.tasks);
     });
   }
@@ -676,23 +711,25 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    tasks.forEach((task, i) => {
+    tasks.forEach((task) => {
       const li = document.createElement('li');
       li.className = `task-item ${task.done ? 'done' : ''}`;
       li.innerHTML = `
-        <div class="task-checkbox ${task.done ? 'checked' : ''}" data-index="${i}"></div>
+        <div class="task-checkbox ${task.done ? 'checked' : ''}" data-id="${task.id}"></div>
         <span class="task-text">${escapeHtml(task.text)}</span>
-        <button class="task-delete" data-index="${i}">&times;</button>
+        <button class="task-delete" data-id="${task.id}">&times;</button>
       `;
       taskList.appendChild(li);
     });
 
-    // Checkbox click
+    // Checkbox click — look tasks up by id so a reordered/synced list is safe.
     taskList.querySelectorAll('.task-checkbox').forEach(cb => {
       cb.addEventListener('click', () => {
-        const idx = parseInt(cb.dataset.index);
+        const id = cb.dataset.id;
         chrome.storage.local.get({ tasks: [] }, (data) => {
-          data.tasks[idx].done = !data.tasks[idx].done;
+          const task = data.tasks.find(t => String(t.id) === id);
+          if (!task) return;
+          task.done = !task.done;
           saveTasks(data.tasks);
         });
       });
@@ -701,10 +738,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delete click
     taskList.querySelectorAll('.task-delete').forEach(btn => {
       btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.index);
+        const id = btn.dataset.id;
         chrome.storage.local.get({ tasks: [] }, (data) => {
-          data.tasks.splice(idx, 1);
-          saveTasks(data.tasks);
+          saveTasks(data.tasks.filter(t => String(t.id) !== id));
         });
       });
     });
@@ -714,7 +750,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const text = taskInput.value.trim();
     if (!text) return;
     chrome.storage.local.get({ tasks: [] }, (data) => {
-      data.tasks.push({ text, done: false, createdAt: Date.now() });
+      data.tasks.push({ id: genId(), text, done: false, createdAt: Date.now() });
       saveTasks(data.tasks);
       taskInput.value = '';
     });
@@ -774,26 +810,23 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const user = await signInWithGoogle();
       updateSyncUI(user);
-      // Auto-sync on first sign-in: pull existing cloud data, or push if none exists
-      const hadCloudData = await pullFromCloud(user.uid);
-      if (!hadCloudData) {
-        await pushToCloud(user.uid);
-        showSyncStatus('Data backed up to cloud ✓');
-      } else {
-        showSyncStatus('Data restored from cloud ✓');
-      }
+      // Auto-sync on sign-in: pull only if the cloud copy is newer than this
+      // device's last sync, otherwise push (avoids clobbering newer local data).
+      const result = await syncOnSignIn(user.uid);
+      showSyncStatus(result === 'pulled' ? 'Data restored from cloud' : 'Data backed up to cloud');
     } catch (err) {
       console.error('[Hocus Focus] Sign-in error:', err);
       showSyncStatus('Sign-in failed: ' + (err.message || err), true);
     } finally {
       signInBtn.disabled = false;
       signInBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-          <polyline points="10 17 15 12 10 7"/>
-          <line x1="15" y1="12" x2="3" y2="12"/>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
         </svg>
-        Sign in with Google to Sync`;
+        Sign in with Google`;
     }
   });
 
@@ -813,16 +846,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const user = firebaseCurrentUser();
     if (!user) return showSyncStatus('Not signed in', true);
     pushSyncBtn.disabled = true;
-    pushSyncBtn.textContent = '⬆️ Pushing...';
+    pushSyncBtn.textContent = 'Pushing...';
     try {
       await pushToCloud(user.uid);
-      showSyncStatus('Data pushed to cloud ✓');
+      showSyncStatus('Data pushed to cloud');
     } catch (err) {
       console.error('[Hocus Focus] Push error:', err);
       showSyncStatus('Push failed: ' + err.message, true);
     } finally {
       pushSyncBtn.disabled = false;
-      pushSyncBtn.textContent = '⬆️ Push to Cloud';
+      pushSyncBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 11 12 6 7 11"/><line x1="12" y1="6" x2="12" y2="18"/></svg> Push';
     }
   });
 
@@ -831,11 +864,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const user = firebaseCurrentUser();
     if (!user) return showSyncStatus('Not signed in', true);
     pullSyncBtn.disabled = true;
-    pullSyncBtn.textContent = '⬇️ Pulling...';
+    pullSyncBtn.textContent = 'Pulling...';
     try {
       const success = await pullFromCloud(user.uid);
       if (success) {
-        showSyncStatus('Data restored from cloud ✓');
+        showSyncStatus('Data restored from cloud');
         // Reload popup to reflect new data
         setTimeout(() => location.reload(), 1000);
       } else {
@@ -846,7 +879,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showSyncStatus('Pull failed: ' + err.message, true);
     } finally {
       pullSyncBtn.disabled = false;
-      pullSyncBtn.textContent = '⬇️ Pull from Cloud';
+      pullSyncBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="18" x2="12" y2="6"/></svg> Pull';
     }
   });
 })();

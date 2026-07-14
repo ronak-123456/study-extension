@@ -1,16 +1,21 @@
 // Import Firebase library and client
 importScripts('lib/firebase-bundle.js', 'firebase-config.js', 'firebase-client.js');
 
-let lastNotifiedDomain = '';
-let lastNotifiedAt = 0;
 const REMINDER_INTERVAL_MINS = 15;
 const NOTIFICATION_COOLDOWN_MS = REMINDER_INTERVAL_MINS * 60 * 1000;
+// Per-domain timestamp of the last "off track" nudge, used to throttle spam.
+let focusNudgeTimestamps = {};
 
 let activeTabId = null;
 let activeStartTime = null;
 let activeDomain = null;
 let activeUrl = null;
 let activeTitle = null;
+
+// Per-session guards so each milestone nudge fires once, even if the exact
+// tick is missed while the MV3 service worker is asleep.
+let lastDistractionNudgeMinute = -1;
+let lastStudyMilestoneMinute = -1;
 
 let isEnabled = true;
 
@@ -84,7 +89,7 @@ function updateBadge() {
       );
       if (matchedAllowanceDomain) {
         const { limitSeconds } = data.allowances[matchedAllowanceDomain];
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateStr();
         const todayStats = data.dailyStats[today] || {};
         const todayTempFocus = (data.tempFocusLog[today]) || {};
         let usedSeconds = 0;
@@ -105,24 +110,41 @@ function updateBadge() {
 
     const minutes = Math.floor(durationSec / 60);
 
+    // Sign-in/OAuth pages and searches for an allowed site are neutral — no
+    // allowance or distraction nudges here.
+    const isNeutral = isNeutralDomain(activeDomain) || isAllowedSiteSearch(activeUrl, data.studyDomains);
+
     // --- Allowance System Check (only for non-study sites without temp pass) ---
-    if (!isStudy && !hasTempPass) {
+    if (!isStudy && !hasTempPass && !isNeutral) {
       checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec);
     }
 
-    // Graduated distraction nudges every 10 minutes (skip if within allowance or temp pass)
-    if (!isStudy && !hasTempPass && !isWithinAllowance && durationSec > 0 && minutes >= 10 && durationSec % 600 === 0) {
+    // Graduated distraction nudges at each 10-minute mark. Minute-based (not an
+    // exact-second match) so a missed tick while the worker slept won't skip it.
+    if (!isStudy && !hasTempPass && !isNeutral && !isWithinAllowance &&
+        minutes >= 10 && minutes % 10 === 0 && minutes !== lastDistractionNudgeMinute) {
+      lastDistractionNudgeMinute = minutes;
       sendGraduatedDistraction(activeTabId, activeDomain, minutes);
     }
 
     // Study encouragement at milestones: 30m, 1h, 1.5h, 2h, 3h
-    if (isStudy && durationSec > 0) {
+    if (isStudy) {
       const studyMilestones = [30, 60, 90, 120, 180];
-      if (studyMilestones.includes(minutes) && durationSec % 60 === 0) {
+      if (studyMilestones.includes(minutes) && minutes !== lastStudyMilestoneMinute) {
+        lastStudyMilestoneMinute = minutes;
         sendStudyEncouragement(activeTabId, activeDomain, minutes);
       }
     }
   });
+}
+
+// Local calendar date as YYYY-MM-DD. Used for all daily stat keys so they line
+// up with the local clock (getHours) instead of drifting a day at UTC midnight.
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getDomain(url) {
@@ -182,6 +204,11 @@ function startTracking(tabId, url, title) {
           activeDomain = data.trackingState.domain;
           activeUrl = data.trackingState.url;
           activeTitle = data.trackingState.title;
+          // Prime milestone guards to the current minute so a worker restart
+          // doesn't re-fire a nudge that already went out this minute.
+          const restoredMin = Math.floor((Date.now() - activeStartTime) / 60000);
+          lastDistractionNudgeMinute = restoredMin;
+          lastStudyMilestoneMinute = restoredMin;
           if (!badgeTimerInterval) {
             badgeTimerInterval = setInterval(updateBadge, 1000);
           }
@@ -206,6 +233,8 @@ function beginFreshTracking(tabId, url, title, domain) {
   activeDomain = domain;
   activeUrl = url;
   activeTitle = title || 'Untitled Tab';
+  lastDistractionNudgeMinute = -1;
+  lastStudyMilestoneMinute = -1;
 
   if (chrome.storage.session) {
     chrome.storage.session.set({
@@ -222,50 +251,70 @@ function beginFreshTracking(tabId, url, title, domain) {
   updateBadge();
 }
 
+// Serialize stat writes so overlapping tab-switch / flush-alarm events can't
+// each read the old object and clobber one another's increments.
+let statsWriteChain = Promise.resolve();
+
 function saveStats(domain, url, title, duration) {
-  const today = new Date().toISOString().split('T')[0];
-  const hour = new Date().getHours();
-  chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {}, hourlyStats: {}, tempFocusLog: {} }, (data) => {
-    const stats = data.dailyStats;
-    const urlStats = data.dailyUrlStats;
-    const hourly = data.hourlyStats;
-    const tempFocusLog = data.tempFocusLog;
+  statsWriteChain = statsWriteChain
+    .then(() => saveStatsInternal(domain, url, title, duration))
+    .catch(() => { });
+}
 
-    // Update domain stats
-    if (!stats[today]) stats[today] = {};
-    if (!stats[today][domain]) stats[today][domain] = 0;
-    stats[today][domain] += duration;
+function saveStatsInternal(domain, url, title, duration) {
+  return new Promise((resolve) => {
+    const today = localDateStr();
+    const hour = new Date().getHours();
+    chrome.storage.local.get({
+      dailyStats: {}, dailyUrlStats: {}, hourlyStats: {}, tempFocusLog: {},
+      studyDomains: [], allowances: {}, tempFocusPasses: {}
+    }, (data) => {
+      // Don't record sign-in/OAuth pages or searches for an allowed site —
+      // they're transit, not focus or distraction.
+      if (isNeutralDomain(domain) || isAllowedSiteSearch(url, data.studyDomains)) {
+        resolve();
+        return;
+      }
 
-    // Update URL stats
-    if (!urlStats[today]) urlStats[today] = {};
-    if (!urlStats[today][url]) {
-      urlStats[today][url] = { title: title, domain: domain, duration: 0 };
-    }
-    urlStats[today][url].duration += duration;
-    urlStats[today][url].title = title || urlStats[today][url].title;
+      const stats = data.dailyStats;
+      const urlStats = data.dailyUrlStats;
+      const hourly = data.hourlyStats;
+      const tempFocusLog = data.tempFocusLog;
 
-    // Update hourly stats
-    if (!hourly[today]) hourly[today] = {};
-    if (!hourly[today][hour]) hourly[today][hour] = { focus: 0, distraction: 0 };
-    chrome.storage.local.get({ studyDomains: [], allowances: {}, tempFocusPasses: {} }, (sd) => {
-      const isStudy = sd.studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+      // Update domain stats
+      if (!stats[today]) stats[today] = {};
+      if (!stats[today][domain]) stats[today][domain] = 0;
+      stats[today][domain] += duration;
+
+      // Update URL stats
+      if (!urlStats[today]) urlStats[today] = {};
+      if (!urlStats[today][url]) {
+        urlStats[today][url] = { title: title, domain: domain, duration: 0 };
+      }
+      urlStats[today][url].duration += duration;
+      urlStats[today][url].title = title || urlStats[today][url].title;
+
+      // Update hourly stats
+      if (!hourly[today]) hourly[today] = {};
+      if (!hourly[today][hour]) hourly[today][hour] = { focus: 0, distraction: 0 };
+
+      const isStudy = data.studyDomains.some(d => domain === d || domain.endsWith('.' + d));
       if (isStudy) {
         hourly[today][hour].focus += duration;
       } else {
         // Check if domain has an active temp focus pass
-        const matchedPass = Object.entries(sd.tempFocusPasses).find(([d]) =>
+        const matchedPass = Object.entries(data.tempFocusPasses).find(([d]) =>
           domain === d || domain.endsWith('.' + d)
         );
         if (matchedPass && matchedPass[1].expiresAt > Date.now()) {
           // Temp focus pass active — count as focus
           hourly[today][hour].focus += duration;
-          // Log this time so dashboard knows it's deep work
           if (!tempFocusLog[today]) tempFocusLog[today] = {};
           if (!tempFocusLog[today][domain]) tempFocusLog[today][domain] = 0;
           tempFocusLog[today][domain] += duration;
         } else {
           // Check if this domain has an allowance
-          const allowances = sd.allowances || {};
+          const allowances = data.allowances || {};
           const matchedAllowanceDomain = Object.keys(allowances).find(d =>
             domain === d || domain.endsWith('.' + d)
           );
@@ -277,7 +326,6 @@ function saveStats(domain, url, title, duration) {
             let usedSeconds = 0;
             Object.entries(todayStats).forEach(([d, seconds]) => {
               if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-                // Subtract temp focus time from used allowance
                 const tempSec = todayTempFocusLog[d] || 0;
                 usedSeconds += Math.max(0, seconds - tempSec);
               }
@@ -296,17 +344,30 @@ function saveStats(domain, url, title, duration) {
           }
         }
       }
-      chrome.storage.local.set({ dailyStats: stats, dailyUrlStats: urlStats, hourlyStats: hourly, tempFocusLog: tempFocusLog });
+      chrome.storage.local.set({
+        dailyStats: stats, dailyUrlStats: urlStats, hourlyStats: hourly, tempFocusLog: tempFocusLog
+      }, () => resolve());
     });
   });
 }
 
+// Show an in-page overlay on the active tab. Only if the overlay can't be
+// injected (e.g. a page where content scripts can't run) do we fall back to a
+// system notification — this avoids alerting the user twice for one event.
+function showOverlayOrNotify(tabId, overlayPayload, systemNotif) {
+  if (!tabId) {
+    chrome.notifications.create(systemNotif);
+    return;
+  }
+  chrome.tabs.sendMessage(tabId, overlayPayload).catch(() => {
+    chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] })
+      .then(() => chrome.tabs.sendMessage(tabId, overlayPayload)
+        .catch(() => chrome.notifications.create(systemNotif)))
+      .catch(() => chrome.notifications.create(systemNotif));
+  });
+}
+
 function triggerFocusNotification(tabId, currentDomain) {
-  const now = Date.now();
-
-  lastNotifiedDomain = currentDomain;
-  lastNotifiedAt = now;
-
   chrome.storage.local.get({ customNudges: [] }, (data) => {
     const defaultMessages = [
       `You wandered onto ${currentDomain}. Your work notes miss you.`,
@@ -319,32 +380,17 @@ function triggerFocusNotification(tabId, currentDomain) {
       : defaultMessages;
     const message = allMessages[Math.floor(Math.random() * allMessages.length)];
 
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-      title: '🫣 Caught You!',
-      message,
-      priority: 1
-    });
-
-    if (tabId) {
-      chrome.tabs.sendMessage(tabId, {
-        action: 'showFocusNudge',
-        domain: currentDomain,
-        customMessage: message
-      }).catch(() => {
-        chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ['content.js']
-        }).then(() => {
-          chrome.tabs.sendMessage(tabId, {
-            action: 'showFocusNudge',
-            domain: currentDomain,
-            customMessage: message
-          });
-        }).catch(() => { });
-      });
-    }
+    showOverlayOrNotify(
+      tabId,
+      { action: 'showFocusNudge', domain: currentDomain, customMessage: message },
+      {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: '🫣 Caught You!',
+        message,
+        priority: 1
+      }
+    );
   });
 }
 
@@ -393,36 +439,17 @@ function sendGraduatedDistraction(tabId, domain, minutes) {
   const message = getDistractionMessage(minutes);
   const severity = minutes >= 30 ? 'high' : minutes >= 20 ? 'medium' : 'low';
 
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-    title: minutes >= 30 ? '🚨 Time Check!' : '⏰ Still Here?',
-    message,
-    priority: minutes >= 30 ? 2 : 1
-  });
-
-  if (tabId) {
-    chrome.tabs.sendMessage(tabId, {
-      action: 'showDistractionBlock',
-      domain,
-      minutes,
+  showOverlayOrNotify(
+    tabId,
+    { action: 'showDistractionBlock', domain, minutes, message, severity },
+    {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+      title: minutes >= 30 ? '🚨 Time Check!' : '⏰ Still Here?',
       message,
-      severity
-    }).catch(() => {
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['content.js']
-      }).then(() => {
-        chrome.tabs.sendMessage(tabId, {
-          action: 'showDistractionBlock',
-          domain,
-          minutes,
-          message,
-          severity
-        });
-      }).catch(() => { });
-    });
-  }
+      priority: minutes >= 30 ? 2 : 1
+    }
+  );
 }
 
 // Study encouragement messages
@@ -458,34 +485,17 @@ function sendStudyEncouragement(tabId, domain, minutes) {
   const msgs = STUDY_MESSAGES[minutes] || STUDY_MESSAGES[60];
   const message = msgs[Math.floor(Math.random() * msgs.length)];
 
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-    title: '🌟 Great Work!',
-    message,
-    priority: 1
-  });
-
-  if (tabId) {
-    chrome.tabs.sendMessage(tabId, {
-      action: 'showStudyEncouragement',
-      domain,
-      minutes,
-      message
-    }).catch(() => {
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['content.js']
-      }).then(() => {
-        chrome.tabs.sendMessage(tabId, {
-          action: 'showStudyEncouragement',
-          domain,
-          minutes,
-          message
-        });
-      }).catch(() => { });
-    });
-  }
+  showOverlayOrNotify(
+    tabId,
+    { action: 'showStudyEncouragement', domain, minutes, message },
+    {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+      title: '🌟 Great Work!',
+      message,
+      priority: 1
+    }
+  );
 }
 
 // =============================================
@@ -505,7 +515,7 @@ function checkAllowance(allowances, dailyStats, domain, currentSessionSeconds) {
   if (!matchedAllowanceDomain) return;
 
   const { limitSeconds } = allowances[matchedAllowanceDomain];
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const todayStats = dailyStats[today] || {};
 
   // Calculate total used time today (saved + current session), minus temp focus time
@@ -568,36 +578,17 @@ function sendAllowanceNotification(tabId, domain, remainingSeconds, limitSeconds
     message = `${mins} minute${mins > 1 ? 's' : ''} left of your daily ${limitStr} on ${domain}.`;
   }
 
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-    title,
-    message,
-    priority: level === 'exceeded' ? 2 : 1
-  });
-
-  if (tabId) {
-    chrome.tabs.sendMessage(tabId, {
-      action: 'showAllowanceCountdown',
-      domain,
-      remainingSeconds,
-      limitSeconds,
-      level
-    }).catch(() => {
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['content.js']
-      }).then(() => {
-        chrome.tabs.sendMessage(tabId, {
-          action: 'showAllowanceCountdown',
-          domain,
-          remainingSeconds,
-          limitSeconds,
-          level
-        });
-      }).catch(() => { });
-    });
-  }
+  showOverlayOrNotify(
+    tabId,
+    { action: 'showAllowanceCountdown', domain, remainingSeconds, limitSeconds, level },
+    {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+      title,
+      message,
+      priority: level === 'exceeded' ? 2 : 1
+    }
+  );
 }
 
 function formatTimeShort(seconds) {
@@ -619,10 +610,70 @@ function isSkippableUrl(url) {
   );
 }
 
+// Sign-in / OAuth / system domains. These are never treated as distractions:
+// no nudges, no allowance countdowns, and no stat tracking (e.g. Google sign-in).
+const NEUTRAL_DOMAINS = [
+  'accounts.google.com',
+  'accounts.youtube.com',
+  'oauth2.googleapis.com',
+  'content.googleapis.com',
+  'login.microsoftonline.com',
+  'login.live.com',
+  'appleid.apple.com',
+  'auth.openai.com'
+];
+
+function isNeutralDomain(domain) {
+  if (!domain) return false;
+  return NEUTRAL_DOMAINS.some(d => domain === d || domain.endsWith('.' + d));
+}
+
+// Search engines are NOT neutral by default — searching random things is a
+// distraction. But searching *for one of your allowed sites* (to open it) is
+// just a transit step, so we suppress the nudge only in that case.
+const SEARCH_ENGINE_HOSTS = [
+  'google.com', 'bing.com', 'duckduckgo.com', 'search.brave.com',
+  'ecosia.org', 'startpage.com', 'search.yahoo.com', 'yandex.com'
+];
+
+// The query string typed into a search engine, or null if the URL isn't a
+// search-results page.
+function getSearchQuery(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    const isSearch = SEARCH_ENGINE_HOSTS.some(d => host === d || host.endsWith('.' + d));
+    if (!isSearch) return null;
+    const q = u.searchParams.get('q') || u.searchParams.get('query') || u.searchParams.get('p');
+    return q ? q.toLowerCase().trim() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// The distinctive label of a domain, e.g. "wikipedia" from "en.wikipedia.org".
+function domainKeyword(domain) {
+  const parts = domain.replace(/^www\./, '').split('.');
+  return parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+}
+
+// True when the URL is a search for one of the user's allowed study sites —
+// i.e. the user is searching to *reach* an allowed site, not to get distracted.
+function isAllowedSiteSearch(url, studyDomains) {
+  const q = getSearchQuery(url);
+  if (!q || !studyDomains || studyDomains.length === 0) return false;
+  return studyDomains.some(d => {
+    const keyword = domainKeyword(d);
+    return q.includes(d) || (keyword.length >= 3 && q.includes(keyword));
+  });
+}
+
 function evaluateTab(tab) {
   if (!tab || !isEnabled) return;
   const domain = getDomain(tab.url);
   if (!domain) return;
+  // Never nudge on sign-in / OAuth pages (e.g. Google sign-in during Cloud Sync)
+  if (isNeutralDomain(domain)) return;
 
   chrome.storage.local.get({ studyDomains: [], tempFocusPasses: {} }, (data) => {
     const allowedStudyDomains = data.studyDomains;
@@ -636,7 +687,15 @@ function evaluateTab(tab) {
       (domain === d || domain.endsWith('.' + d)) && p.expiresAt > Date.now()
     );
 
+    // Searching a search engine for one of your allowed sites is transit, not a
+    // distraction — don't nudge. (Searching for anything else still nudges.)
+    if (isAllowedSiteSearch(tab.url, allowedStudyDomains)) return;
+
     if (!isStudyTab && !hasTempPass && allowedStudyDomains.length > 0) {
+      // Throttle: at most one "off track" nudge per domain per cooldown window.
+      const now = Date.now();
+      if (now - (focusNudgeTimestamps[domain] || 0) < NOTIFICATION_COOLDOWN_MS) return;
+      focusNudgeTimestamps[domain] = now;
       triggerFocusNotification(tab.id, domain);
     }
   });
@@ -666,10 +725,28 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   }
 });
 
+// The popup opens a port while it's on screen. Opening the action popup makes
+// Chrome briefly report "no focused window", which would otherwise stop (and
+// reset) tracking. We use this flag to ignore that self-inflicted blur.
+let popupOpen = false;
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'hocus-popup') {
+    popupOpen = true;
+    port.onDisconnect.addListener(() => { popupOpen = false; });
+  }
+});
+
+let blurStopTimer = null;
 chrome.windows.onFocusChanged.addListener((windowId) => {
   if (windowId === chrome.windows.WINDOW_ID_NONE) {
-    stopTracking();
+    // Debounce: opening our own popup reports WINDOW_ID_NONE. Wait briefly, and
+    // only stop if it wasn't our popup and focus really is still gone.
+    clearTimeout(blurStopTimer);
+    blurStopTimer = setTimeout(() => {
+      if (!popupOpen) stopTracking();
+    }, 600);
   } else {
+    clearTimeout(blurStopTimer);
     chrome.tabs.query({ active: true, windowId: windowId }, (tabs) => {
       if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
     });
@@ -687,6 +764,15 @@ chrome.idle.onStateChanged.addListener((state) => {
 });
 
 chrome.runtime.onInstalled.addListener((details) => {
+  // Migrate legacy study domains stored with a "www." prefix so subdomain
+  // matching works (e.g. an allowed "www.example.com" now covers "example.com").
+  chrome.storage.local.get({ studyDomains: [] }, (d) => {
+    const normalized = [...new Set(d.studyDomains.map(x => x.replace(/^www\./, '')))];
+    if (JSON.stringify(normalized) !== JSON.stringify(d.studyDomains)) {
+      chrome.storage.local.set({ studyDomains: normalized });
+    }
+  });
+
   chrome.alarms.create('flushStats', { periodInMinutes: 30 });
   scheduleDailySummaryAlarm();
   chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
@@ -740,10 +826,10 @@ function scheduleDailySummaryAlarm() {
 }
 
 function checkSummaryNotification() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const yesterdayDate = new Date();
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterday = yesterdayDate.toISOString().split('T')[0];
+  const yesterday = localDateStr(yesterdayDate);
 
   chrome.storage.local.get(['lastSummaryNotifiedDate', 'dailyStats', 'studyDomains'], (data) => {
     if (data.lastSummaryNotifiedDate === today) return;
@@ -796,7 +882,7 @@ function checkSummaryNotification() {
 
 // End-of-day summary — triggered at 9 PM with today's stats
 function sendEndOfDaySummary() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
 
   chrome.storage.local.get(['lastEODSummaryDate', 'dailyStats', 'studyDomains'], (data) => {
     if (data.lastEODSummaryDate === today) return;
@@ -881,6 +967,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'dailySummary') {
     sendEndOfDaySummary();
   }
+  if (alarm.name === 'pomodoroDone') {
+    completePomodoro();
+  }
   if (alarm.name === 'keepAlive') {
     // Just keeps the service worker alive — restart badge timer if needed
     if (activeStartTime && !badgeTimerInterval) {
@@ -919,8 +1008,8 @@ function startTempFocusPass(domain, minutes) {
     passes[domain] = { expiresAt, minutes };
     chrome.storage.local.set({ tempFocusPasses: passes });
 
-    // Create an alarm to expire this pass
-    chrome.alarms.create(`tempFocus_${domain}`, { delayInMinutes: minutes });
+    // Create an alarm to expire this pass (min 1 min — Chrome ignores shorter).
+    chrome.alarms.create(`tempFocus_${domain}`, { delayInMinutes: Math.max(minutes, 1) });
   });
 }
 
@@ -967,5 +1056,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ passes: data.tempFocusPasses });
     });
     return true; // async response
+  } else if (message.action === 'closeActiveTab') {
+    // Content script asks us to close its tab (window.close() is a no-op on
+    // normal tabs, so "Exit This Site" couldn't close them by itself).
+    const tabId = sender.tab && sender.tab.id;
+    if (tabId) chrome.tabs.remove(tabId).catch(() => { });
+    sendResponse({ success: true });
+  } else if (message.action === 'pomodoroStart') {
+    // Schedule completion in the background so it fires even if the popup is
+    // closed. `endsAt` is an absolute timestamp.
+    chrome.alarms.create('pomodoroDone', { when: message.endsAt });
+    sendResponse({ success: true });
+  } else if (message.action === 'pomodoroStop') {
+    chrome.alarms.clear('pomodoroDone');
+    sendResponse({ success: true });
   }
+});
+
+// Fire the Pomodoro completion (session count + notification) from the
+// background so it happens on time regardless of whether the popup is open.
+function completePomodoro() {
+  chrome.storage.local.get({ pomoState: null, pomoSessions: 0 }, (data) => {
+    const mode = data.pomoState ? data.pomoState.mode : 'focus';
+    chrome.storage.local.set({ pomoState: null });
+    if (mode === 'focus') {
+      chrome.storage.local.set({ pomoSessions: data.pomoSessions + 1 });
+      chrome.notifications.create({
+        type: 'basic', iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: 'Pomodoro Complete!', message: 'Great work! Take a break.', priority: 2
+      });
+    } else {
+      chrome.notifications.create({
+        type: 'basic', iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: 'Break Over!', message: 'Time to focus again.', priority: 2
+      });
+    }
+  });
+}
+
+// Clicking any of our notifications should dismiss it.
+chrome.notifications.onClicked.addListener((id) => {
+  chrome.notifications.clear(id);
 });
