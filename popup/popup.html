@@ -359,6 +359,21 @@
       transform: translateY(0);
     }
 
+    .analysis-btn {
+      background: var(--yellow);
+      color: #1a1a1a;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .analysis-btn:hover {
+      box-shadow: 0 6px 16px rgba(245, 158, 11, 0.45);
+    }
+
+    body.dark .analysis-btn {
+      background: var(--yellow);
+      color: #1a1a1a;
+    }
+
     /* Toggle Switch Styles */
     .header-actions {
       display: flex;
@@ -501,14 +516,7 @@
     .allowance-title::before,
     .temp-focus-title::before,
     .tasks-title::before {
-      content: '';
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: var(--yellow);
-      border-radius: 50%;
-      margin-right: 6px;
-      vertical-align: middle;
+      display: none;
     }
 
     .pomo-tabs {
@@ -1303,7 +1311,7 @@
 
     <ul id="domainList"></ul>
 
-    <button id="viewStatsBtn" class="primary-btn" style="margin-top: 14px;">View Analysis Dashboard</button>
+    <button id="viewStatsBtn" class="primary-btn analysis-btn" style="margin-top: 14px;">View Analysis Dashboard</button>
 
     <!-- Allowances Section -->
     <div class="allowance-section">
