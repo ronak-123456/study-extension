@@ -1,4 +1,47 @@
-// Cloud Sync UI Logic
+// Cloud Sync UI Logic — with lazy-loaded Firebase
+// Firebase bundle (1.3MB) is NOT loaded on popup open. It's injected only when
+// the user interacts with sync features (sign-in, push, pull, or auth check).
+
+let firebaseLoaded = false;
+let firebaseLoadPromise = null;
+
+/**
+ * Dynamically load Firebase scripts (bundle + config + client).
+ * Returns a promise that resolves once all three scripts are loaded and
+ * the global Firebase functions (signInWithGoogle, pushToCloud, etc.) are available.
+ */
+function loadFirebase() {
+  if (firebaseLoaded) return Promise.resolve();
+  if (firebaseLoadPromise) return firebaseLoadPromise;
+
+  firebaseLoadPromise = new Promise((resolve, reject) => {
+    const scripts = [
+      '../lib/firebase-bundle.js',
+      '../firebase-config.js',
+      '../firebase-client.js'
+    ];
+
+    let loaded = 0;
+    function loadNext() {
+      if (loaded >= scripts.length) {
+        firebaseLoaded = true;
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = scripts[loaded];
+      script.onload = () => {
+        loaded++;
+        loadNext();
+      };
+      script.onerror = () => reject(new Error(`Failed to load ${scripts[loaded]}`));
+      document.head.appendChild(script);
+    }
+    loadNext();
+  });
+
+  return firebaseLoadPromise;
+}
 
 export function initSync() {
   const signInBtn = document.getElementById('signInBtn');
@@ -27,9 +70,20 @@ export function initSync() {
     }
   }
 
-  // Check auth state on load
-  firebaseOnAuthStateChanged((user) => {
-    updateSyncUI(user);
+  // Check auth state — only if user has previously signed in (avoid loading
+  // Firebase for users who never use sync). We use a lightweight storage flag.
+  chrome.storage.local.get({ lastSyncedAt: 0 }, async (data) => {
+    if (data.lastSyncedAt > 0) {
+      // User has synced before — load Firebase to restore their auth state
+      try {
+        await loadFirebase();
+        firebaseOnAuthStateChanged((user) => {
+          updateSyncUI(user);
+        });
+      } catch (err) {
+        console.warn('[Hocus Focus] Firebase lazy-load for auth check failed:', err);
+      }
+    }
   });
 
   // Sign In
@@ -37,6 +91,7 @@ export function initSync() {
     signInBtn.disabled = true;
     signInBtn.textContent = 'Signing in...';
     try {
+      await loadFirebase();
       const user = await signInWithGoogle();
       updateSyncUI(user);
       const result = await syncOnSignIn(user.uid);
@@ -60,6 +115,7 @@ export function initSync() {
   // Sign Out
   signOutBtn.addEventListener('click', async () => {
     try {
+      await loadFirebase();
       await signOutUser();
       updateSyncUI(null);
     } catch (err) {
@@ -70,6 +126,11 @@ export function initSync() {
 
   // Push to Cloud
   pushSyncBtn.addEventListener('click', async () => {
+    try {
+      await loadFirebase();
+    } catch (err) {
+      return showSyncStatus('Failed to load sync module', true);
+    }
     const user = firebaseCurrentUser();
     if (!user) return showSyncStatus('Not signed in', true);
     pushSyncBtn.disabled = true;
@@ -88,6 +149,11 @@ export function initSync() {
 
   // Pull from Cloud
   pullSyncBtn.addEventListener('click', async () => {
+    try {
+      await loadFirebase();
+    } catch (err) {
+      return showSyncStatus('Failed to load sync module', true);
+    }
     const user = firebaseCurrentUser();
     if (!user) return showSyncStatus('Not signed in', true);
     pullSyncBtn.disabled = true;
