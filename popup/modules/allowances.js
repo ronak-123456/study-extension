@@ -1,6 +1,7 @@
 // Allowance system UI
 
 import { localDateStr } from './utils.js';
+import { getDomainStatsByDate, getTempFocusLogByDate } from '../../lib/stats-db.js';
 
 export function initAllowances() {
   const allowanceDomainInput = document.getElementById('allowanceDomainInput');
@@ -108,14 +109,18 @@ export function initAllowances() {
     });
   }
 
-  function loadAllowances() {
+  async function loadAllowances() {
     const today = localDateStr();
-    chrome.storage.local.get({ allowances: {}, dailyStats: {}, tempFocusLog: {} }, (data) => {
-      const allowances = data.allowances || {};
-      const todayStats = data.dailyStats[today] || {};
-      const todayTempFocus = data.tempFocusLog[today] || {};
-      renderAllowances(allowances, todayStats, todayTempFocus);
-    });
+
+    // Read allowances from chrome.storage, stats from IndexedDB
+    const [storageData, todayStats, todayTempFocus] = await Promise.all([
+      new Promise(resolve => chrome.storage.local.get({ allowances: {} }, resolve)),
+      getDomainStatsByDate(today),
+      getTempFocusLogByDate(today)
+    ]);
+
+    const allowances = storageData.allowances || {};
+    renderAllowances(allowances, todayStats, todayTempFocus);
   }
 
   function renderAllowances(allowances, todayStats, todayTempFocus = {}) {

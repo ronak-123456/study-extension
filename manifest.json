@@ -63,6 +63,7 @@
         "analysis/*",
         "onboarding.html",
         "lib/firebase-bundle.js",
+        "lib/stats-db.js",
         "firebase-config.js",
         "firebase-client.js"
       ],

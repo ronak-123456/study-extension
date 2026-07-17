@@ -190,6 +190,21 @@ async function pushToCloud(uid) {
   delete allData.onboardingComplete;
   delete allData.lastSummaryNotifiedDate;
   delete allData.lastEODSummaryDate;
+  delete allData.idbMigrated;            // migration flag — device-local
+
+  // Include IndexedDB time-tracking data if the helper is available
+  if (window._statsDB && window._statsDB.getAllDomainStats) {
+    const [dailyStats, dailyUrlStats, hourlyStats, tempFocusLog] = await Promise.all([
+      window._statsDB.getAllDomainStats(),
+      window._statsDB.getAllUrlStats(),
+      window._statsDB.getAllHourlyStats(),
+      window._statsDB.getAllTempFocusLog()
+    ]);
+    allData.dailyStats = dailyStats;
+    allData.dailyUrlStats = dailyUrlStats;
+    allData.hourlyStats = hourlyStats;
+    allData.tempFocusLog = tempFocusLog;
+  }
 
   const updatedAt = Date.now();
   const db = getFirebaseFirestore();
@@ -208,8 +223,24 @@ async function applyCloudData(cloudData) {
   const updatedAt = data.updatedAt || Date.now();
   delete data.updatedAt;
   delete data.lastSyncedAt; // legacy field from older versions
+
+  // Extract time-tracking data for IndexedDB
+  const idbData = {};
+  if (data.dailyStats) { idbData.dailyStats = data.dailyStats; delete data.dailyStats; }
+  if (data.dailyUrlStats) { idbData.dailyUrlStats = data.dailyUrlStats; delete data.dailyUrlStats; }
+  if (data.hourlyStats) { idbData.hourlyStats = data.hourlyStats; delete data.hourlyStats; }
+  if (data.tempFocusLog) { idbData.tempFocusLog = data.tempFocusLog; delete data.tempFocusLog; }
+
+  // Save non-time-tracking data to chrome.storage
   await chrome.storage.local.set(data);
   await chrome.storage.local.set({ lastSyncedAt: updatedAt });
+
+  // Import time-tracking data into IndexedDB if the helper is available
+  if (window._statsDB && Object.keys(idbData).length > 0) {
+    const { clearAllStores, importLegacyData } = await import(chrome.runtime.getURL('lib/stats-db.js'));
+    await clearAllStores();
+    await importLegacyData(idbData);
+  }
 }
 
 async function pullFromCloud(uid) {
