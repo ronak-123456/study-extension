@@ -336,6 +336,7 @@ export async function sendWeeklySummary() {
   const emoji = score >= 80 ? '🔥' : score >= 60 ? '💪' : score >= 40 ? '👍' : '⚠️';
   const message = `${emoji} You spent ${focusStr} focused this week${changeStr}. Score: ${score}%${topSiteStr}`;
 
+  // On-screen notification
   chrome.notifications.create('weekly-summary-' + today, {
     type: 'basic',
     iconUrl: chrome.runtime.getURL('icons/icon128.png'),
@@ -344,5 +345,61 @@ export async function sendWeeklySummary() {
     priority: 2
   });
 
+  // Email notification (if user has configured an email address)
+  const emailData = await new Promise(resolve =>
+    chrome.storage.local.get({ emailNotifAddress: '', emailjsConfig: null }, resolve)
+  );
+  if (emailData.emailNotifAddress && emailData.emailjsConfig) {
+    sendWeeklyEmail(emailData.emailNotifAddress, emailData.emailjsConfig, {
+      focusStr, changeStr, score, topSite,
+      thisWeekFocus, thisWeekDistraction, lastWeekFocus
+    });
+  }
+
   chrome.storage.local.set({ lastWeeklySummaryDate: today });
+}
+
+/**
+ * Send the weekly summary email via EmailJS REST API.
+ * No server required — EmailJS free tier allows 200 emails/month.
+ *
+ * To configure, the user (developer) sets emailjsConfig in chrome.storage.local:
+ * { serviceId: "...", templateId: "...", publicKey: "..." }
+ *
+ * Template variables available:
+ *   {{to_email}}, {{focus_time}}, {{change}}, {{score}}, {{top_site}},
+ *   {{focus_seconds}}, {{distraction_seconds}}, {{prev_focus_seconds}}
+ */
+async function sendWeeklyEmail(toEmail, config, data) {
+  try {
+    const templateParams = {
+      to_email: toEmail,
+      focus_time: data.focusStr,
+      change: data.changeStr.replace(/^, /, ''),
+      score: `${data.score}%`,
+      top_site: data.topSite || 'N/A',
+      focus_seconds: data.thisWeekFocus,
+      distraction_seconds: data.thisWeekDistraction,
+      prev_focus_seconds: data.lastWeekFocus
+    };
+
+    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service_id: config.serviceId,
+        template_id: config.templateId,
+        user_id: config.publicKey,
+        template_params: templateParams
+      })
+    });
+
+    if (response.ok) {
+      console.log('[Hocus Focus] Weekly email sent to', toEmail);
+    } else {
+      console.warn('[Hocus Focus] Email send failed:', response.status, await response.text());
+    }
+  } catch (err) {
+    console.warn('[Hocus Focus] Email send error:', err);
+  }
 }
