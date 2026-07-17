@@ -73,11 +73,17 @@ function evaluateTab(tab) {
 // =============================================
 // Chrome event listeners
 // =============================================
+let evaluateTabTimer = null;
+
 chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.tabs.get(activeInfo.tabId, (tab) => {
     if (chrome.runtime.lastError || !tab || !tab.url) return;
     startTracking(activeInfo.tabId, tab.url, tab.title);
-    evaluateTab(tab);
+
+    // Debounce nudge evaluation — only nudge on the tab the user settles on,
+    // not every tab flipped through during rapid switching.
+    clearTimeout(evaluateTabTimer);
+    evaluateTabTimer = setTimeout(() => evaluateTab(tab), 350);
   });
 });
 

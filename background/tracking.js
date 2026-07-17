@@ -167,7 +167,9 @@ async function updateBadgeAsync() {
 }
 
 // --- Tracking lifecycle ---
+
 export function stopTracking() {
+  cancelPendingSwitch();
   if (activeStartTime && activeUrl) {
     const duration = Math.round((Date.now() - activeStartTime) / 1000);
     if (duration > 0) {
@@ -190,17 +192,62 @@ export function stopTracking() {
   activeTitle = null;
 }
 
+// Debounce rapid tab switches — only commit to tracking a new tab after it
+// stays active for DEBOUNCE_MS. This prevents logging 10 separate 0-second
+// events when the user ctrl+tabs through multiple tabs quickly.
+const TAB_SWITCH_DEBOUNCE_MS = 300;
+let pendingSwitch = null; // { tabId, url, title, timer }
+
+/**
+ * Schedule a tab switch. If another switch comes in before the debounce
+ * window expires, the previous one is discarded without saving stats.
+ */
 export function startTracking(tabId, url, title) {
   if (!isEnabled) return;
   const domain = getDomain(url);
   if (!domain) {
+    cancelPendingSwitch();
     stopTracking();
     return;
   }
 
-  // If the URL is the same, just keep tracking
-  if (url === activeUrl) return;
+  // If the URL is the same as what we're already tracking, ignore
+  if (url === activeUrl) {
+    cancelPendingSwitch();
+    return;
+  }
 
+  // If there's already a pending switch, cancel it (the user moved on)
+  cancelPendingSwitch();
+
+  // If we're currently tracking a very short session (< debounce window),
+  // and a new switch comes in, just replace immediately without saving.
+  // For longer sessions, use the debounce to avoid losing time.
+  const sessionDuration = activeStartTime ? (Date.now() - activeStartTime) : 0;
+
+  if (sessionDuration < TAB_SWITCH_DEBOUNCE_MS) {
+    // Very brief visit — don't bother saving it, just switch immediately
+    commitSwitch(tabId, url, title, domain);
+  } else {
+    // Normal case: wait for debounce, then commit
+    pendingSwitch = {
+      tabId, url, title, domain,
+      timer: setTimeout(() => {
+        pendingSwitch = null;
+        commitSwitch(tabId, url, title, domain);
+      }, TAB_SWITCH_DEBOUNCE_MS)
+    };
+  }
+}
+
+function cancelPendingSwitch() {
+  if (pendingSwitch) {
+    clearTimeout(pendingSwitch.timer);
+    pendingSwitch = null;
+  }
+}
+
+function commitSwitch(tabId, url, title, domain) {
   // If no active state (service worker restarted), try to restore
   if (!activeUrl && !activeStartTime) {
     if (chrome.storage.session) {
@@ -215,8 +262,6 @@ export function startTracking(tabId, url, title) {
           activeDomain = data.trackingState.domain;
           activeUrl = data.trackingState.url;
           activeTitle = data.trackingState.title;
-          // Prime milestone guards to the current minute so a worker restart
-          // doesn't re-fire a nudge that already went out this minute.
           const restoredMin = Math.floor((Date.now() - activeStartTime) / 60000);
           lastDistractionNudgeMinute = restoredMin;
           lastStudyMilestoneMinute = restoredMin;
