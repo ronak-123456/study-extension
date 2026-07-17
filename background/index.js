@@ -8,7 +8,7 @@
 
 import { getDomain, isNeutralDomain, isAllowedSiteSearch, isSkippableUrl } from './utils.js';
 import { triggerFocusNotification } from './notifications.js';
-import { saveStats, sendEndOfDaySummary, checkSummaryNotification } from './stats.js';
+import { saveStats, sendEndOfDaySummary, checkSummaryNotification, sendWeeklySummary } from './stats.js';
 import { completePomodoro } from './pomodoro.js';
 import {
   initTracking,
@@ -155,6 +155,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
   chrome.alarms.create('flushStats', { periodInMinutes: 30 });
   scheduleDailySummaryAlarm();
+  scheduleWeeklySummaryAlarm();
   chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
     tabs.forEach((tab) => {
       chrome.scripting.executeScript({
@@ -184,6 +185,7 @@ chrome.runtime.onStartup.addListener(() => {
     if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
   });
   scheduleDailySummaryAlarm();
+  scheduleWeeklySummaryAlarm();
   checkSummaryNotification();
 });
 
@@ -204,6 +206,28 @@ function scheduleDailySummaryAlarm() {
   });
 }
 
+// Schedule a weekly alarm — fires every Sunday at 8 PM for the weekly summary
+function scheduleWeeklySummaryAlarm() {
+  const now = new Date();
+  let target = new Date();
+  // Next Sunday at 8 PM
+  const daysUntilSunday = (7 - now.getDay()) % 7 || 7; // 0=Sun, so if today is Sun use 7 for next week
+  target.setDate(now.getDate() + daysUntilSunday);
+  target.setHours(20, 0, 0, 0);
+
+  // If it's currently Sunday before 8 PM, fire today
+  if (now.getDay() === 0 && now.getHours() < 20) {
+    target = new Date();
+    target.setHours(20, 0, 0, 0);
+  }
+
+  const delayInMinutes = Math.max(1, (target.getTime() - now.getTime()) / 60000);
+  chrome.alarms.create('weeklySummary', {
+    delayInMinutes,
+    periodInMinutes: 7 * 24 * 60 // Repeat every 7 days
+  });
+}
+
 // =============================================
 // Alarms
 // =============================================
@@ -214,6 +238,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
   if (alarm.name === 'dailySummary') {
     sendEndOfDaySummary();
+  }
+  if (alarm.name === 'weeklySummary') {
+    sendWeeklySummary();
   }
   if (alarm.name === 'pomodoroDone') {
     completePomodoro();

@@ -231,3 +231,118 @@ export async function checkSummaryNotification() {
   }
   chrome.storage.local.set({ lastSummaryNotifiedDate: today });
 }
+
+/**
+ * Send a weekly focus summary notification every Sunday at 8 PM.
+ * Compares this week vs last week and shows percentage change.
+ */
+export async function sendWeeklySummary() {
+  const today = localDateStr();
+  const dayOfWeek = new Date().getDay(); // 0 = Sunday
+
+  // Only fire on Sunday (belt-and-suspenders check alongside the alarm)
+  if (dayOfWeek !== 0) return;
+
+  const localData = await new Promise(resolve =>
+    chrome.storage.local.get(['lastWeeklySummaryDate', 'studyDomains'], resolve)
+  );
+
+  if (localData.lastWeeklySummaryDate === today) return;
+
+  const studyDomains = localData.studyDomains || [];
+
+  // This week: last 7 days (Mon–Sun)
+  const thisWeekDates = [];
+  const lastWeekDates = [];
+  const now = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    thisWeekDates.push(localDateStr(d));
+
+    const ld = new Date(now);
+    ld.setDate(ld.getDate() - i - 7);
+    lastWeekDates.push(localDateStr(ld));
+  }
+
+  // Read stats for both weeks from IndexedDB
+  const { getDomainStatsByDate } = await import('../lib/stats-db.js');
+
+  let thisWeekFocus = 0;
+  let thisWeekDistraction = 0;
+  let lastWeekFocus = 0;
+  let lastWeekDistraction = 0;
+  const topDomains = {};
+
+  for (const date of thisWeekDates) {
+    const dayStats = await getDomainStatsByDate(date);
+    Object.entries(dayStats).forEach(([domain, seconds]) => {
+      const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+      if (isStudy) {
+        thisWeekFocus += seconds;
+        topDomains[domain] = (topDomains[domain] || 0) + seconds;
+      } else {
+        thisWeekDistraction += seconds;
+      }
+    });
+  }
+
+  for (const date of lastWeekDates) {
+    const dayStats = await getDomainStatsByDate(date);
+    Object.entries(dayStats).forEach(([domain, seconds]) => {
+      const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+      if (isStudy) lastWeekFocus += seconds;
+      else lastWeekDistraction += seconds;
+    });
+  }
+
+  const thisWeekTotal = thisWeekFocus + thisWeekDistraction;
+  if (thisWeekTotal === 0) {
+    chrome.storage.local.set({ lastWeeklySummaryDate: today });
+    return;
+  }
+
+  // Format focus time
+  const focusHours = Math.floor(thisWeekFocus / 3600);
+  const focusMins = Math.floor((thisWeekFocus % 3600) / 60);
+  const focusStr = focusHours > 0 ? `${focusHours}h ${focusMins}m` : `${focusMins}m`;
+
+  // Calculate percentage change
+  let changeStr = '';
+  if (lastWeekFocus > 0) {
+    const pctChange = Math.round(((thisWeekFocus - lastWeekFocus) / lastWeekFocus) * 100);
+    if (pctChange > 0) {
+      changeStr = `, up ${pctChange}% from last week 📈`;
+    } else if (pctChange < 0) {
+      changeStr = `, down ${Math.abs(pctChange)}% from last week 📉`;
+    } else {
+      changeStr = ', same as last week';
+    }
+  } else {
+    changeStr = ' (no data from last week to compare)';
+  }
+
+  // Focus score
+  const score = Math.round((thisWeekFocus / thisWeekTotal) * 100);
+
+  // Top focus site
+  const topSite = Object.entries(topDomains)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 1)
+    .map(([d]) => d.replace('www.', ''))[0] || '';
+
+  const topSiteStr = topSite ? ` | Top site: ${topSite}` : '';
+
+  const emoji = score >= 80 ? '🔥' : score >= 60 ? '💪' : score >= 40 ? '👍' : '⚠️';
+  const message = `${emoji} You spent ${focusStr} focused this week${changeStr}. Score: ${score}%${topSiteStr}`;
+
+  chrome.notifications.create('weekly-summary-' + today, {
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+    title: '📊 Weekly Focus Summary',
+    message,
+    priority: 2
+  });
+
+  chrome.storage.local.set({ lastWeeklySummaryDate: today });
+}
