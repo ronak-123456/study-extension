@@ -8,7 +8,7 @@
 
 import { getDomain, isNeutralDomain, isAllowedSiteSearch, isSkippableUrl } from './utils.js';
 import { triggerFocusNotification } from './notifications.js';
-import { saveStats, sendEndOfDaySummary, checkSummaryNotification } from './stats.js';
+import { saveStats, sendEndOfDaySummary, checkSummaryNotification, sendWeeklySummary } from './stats.js';
 import { completePomodoro } from './pomodoro.js';
 import {
   initTracking,
@@ -22,7 +22,7 @@ import {
   getActiveStartTime,
   getIsEnabled
 } from './tracking.js';
-import { importLegacyData } from '../lib/stats-db.js';
+import { runMigrations } from './migrations.js';
 
 // =============================================
 // Constants
@@ -73,11 +73,17 @@ function evaluateTab(tab) {
 // =============================================
 // Chrome event listeners
 // =============================================
+let evaluateTabTimer = null;
+
 chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.tabs.get(activeInfo.tabId, (tab) => {
     if (chrome.runtime.lastError || !tab || !tab.url) return;
     startTracking(activeInfo.tabId, tab.url, tab.title);
-    evaluateTab(tab);
+
+    // Debounce nudge evaluation — only nudge on the tab the user settles on,
+    // not every tab flipped through during rapid switching.
+    clearTimeout(evaluateTabTimer);
+    evaluateTabTimer = setTimeout(() => evaluateTab(tab), 350);
   });
 });
 
@@ -136,19 +142,12 @@ chrome.idle.onStateChanged.addListener((state) => {
 // Install & Startup
 // =============================================
 chrome.runtime.onInstalled.addListener((details) => {
-  // Migrate legacy study domains stored with a "www." prefix
-  chrome.storage.local.get({ studyDomains: [] }, (d) => {
-    const normalized = [...new Set(d.studyDomains.map(x => x.replace(/^www\./, '')))];
-    if (JSON.stringify(normalized) !== JSON.stringify(d.studyDomains)) {
-      chrome.storage.local.set({ studyDomains: normalized });
-    }
-  });
-
-  // Migrate time-tracking data from chrome.storage.local to IndexedDB (one-time)
-  migrateStatsToIndexedDB();
+  // Run versioned data migrations
+  runMigrations();
 
   chrome.alarms.create('flushStats', { periodInMinutes: 30 });
   scheduleDailySummaryAlarm();
+  scheduleWeeklySummaryAlarm();
   chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
     tabs.forEach((tab) => {
       chrome.scripting.executeScript({
@@ -174,10 +173,12 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  runMigrations(); // Retry any interrupted migrations
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
   });
   scheduleDailySummaryAlarm();
+  scheduleWeeklySummaryAlarm();
   checkSummaryNotification();
 });
 
@@ -198,6 +199,28 @@ function scheduleDailySummaryAlarm() {
   });
 }
 
+// Schedule a weekly alarm — fires every Sunday at 8 PM for the weekly summary
+function scheduleWeeklySummaryAlarm() {
+  const now = new Date();
+  let target = new Date();
+  // Next Sunday at 8 PM
+  const daysUntilSunday = (7 - now.getDay()) % 7 || 7; // 0=Sun, so if today is Sun use 7 for next week
+  target.setDate(now.getDate() + daysUntilSunday);
+  target.setHours(20, 0, 0, 0);
+
+  // If it's currently Sunday before 8 PM, fire today
+  if (now.getDay() === 0 && now.getHours() < 20) {
+    target = new Date();
+    target.setHours(20, 0, 0, 0);
+  }
+
+  const delayInMinutes = Math.max(1, (target.getTime() - now.getTime()) / 60000);
+  chrome.alarms.create('weeklySummary', {
+    delayInMinutes,
+    periodInMinutes: 7 * 24 * 60 // Repeat every 7 days
+  });
+}
+
 // =============================================
 // Alarms
 // =============================================
@@ -208,6 +231,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
   if (alarm.name === 'dailySummary') {
     sendEndOfDaySummary();
+  }
+  if (alarm.name === 'weeklySummary') {
+    sendWeeklySummary();
   }
   if (alarm.name === 'pomodoroDone') {
     completePomodoro();
@@ -290,45 +316,5 @@ chrome.notifications.onClicked.addListener((id) => {
 });
 
 // =============================================
-// One-time migration: chrome.storage.local → IndexedDB
+// Migrations run via background/migrations.js
 // =============================================
-async function migrateStatsToIndexedDB() {
-  try {
-    // Check if migration has already been done
-    const { idbMigrated } = await new Promise(resolve =>
-      chrome.storage.local.get({ idbMigrated: false }, resolve)
-    );
-    if (idbMigrated) return;
-
-    // Read existing time-tracking data from chrome.storage.local
-    const data = await new Promise(resolve =>
-      chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {}, hourlyStats: {}, tempFocusLog: {} }, resolve)
-    );
-
-    const hasData = Object.keys(data.dailyStats).length > 0 ||
-                    Object.keys(data.dailyUrlStats).length > 0 ||
-                    Object.keys(data.hourlyStats).length > 0 ||
-                    Object.keys(data.tempFocusLog).length > 0;
-
-    if (hasData) {
-      // Import into IndexedDB
-      await importLegacyData({
-        dailyStats: data.dailyStats,
-        dailyUrlStats: data.dailyUrlStats,
-        hourlyStats: data.hourlyStats,
-        tempFocusLog: data.tempFocusLog
-      });
-      console.log('[Hocus Focus] Migrated time-tracking data to IndexedDB');
-
-      // Remove migrated keys from chrome.storage.local to free space
-      // (but only after successful import)
-      chrome.storage.local.remove(['dailyStats', 'dailyUrlStats', 'hourlyStats', 'tempFocusLog']);
-    }
-
-    // Mark migration as complete
-    chrome.storage.local.set({ idbMigrated: true });
-  } catch (err) {
-    console.error('[Hocus Focus] Migration to IndexedDB failed:', err);
-    // Don't mark as migrated — will retry on next install/update
-  }
-}

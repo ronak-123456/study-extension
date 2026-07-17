@@ -61,11 +61,16 @@
       font-size: 24px;
       font-weight: 700;
       margin-bottom: 6px;
+      background: linear-gradient(135deg, #f8fafc, #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .step-header p {
       color: #94a3b8;
       font-size: 14px;
+      margin-bottom: 4px;
     }
 
     .category-group {
@@ -329,16 +334,44 @@
       background: #1e293b;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.05);
+      border-left: 3px solid transparent;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .how-item:hover {
+      transform: translateX(4px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .how-item:nth-child(1) {
+      border-left-color: #6abf9b;
+      background: linear-gradient(135deg, rgba(106, 191, 155, 0.08) 0%, #1e293b 60%);
+    }
+
+    .how-item:nth-child(2) {
+      border-left-color: #fbbf24;
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, #1e293b 60%);
+    }
+
+    .how-item:nth-child(3) {
+      border-left-color: #6366f1;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, #1e293b 60%);
+    }
+
+    .how-item:nth-child(4) {
+      border-left-color: #ec4899;
+      background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, #1e293b 60%);
     }
 
     .how-icon {
-      width: 40px;
-      height: 40px;
+      width: 42px;
+      height: 42px;
       border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
 
     .how-text {
@@ -350,12 +383,17 @@
     .how-text strong {
       font-size: 14px;
       font-weight: 700;
-      color: #f1f5f9;
+      color: #f8fafc;
     }
+
+    .how-item:nth-child(1) .how-text strong { color: #6abf9b; }
+    .how-item:nth-child(2) .how-text strong { color: #fbbf24; }
+    .how-item:nth-child(3) .how-text strong { color: #a5b4fc; }
+    .how-item:nth-child(4) .how-text strong { color: #f472b6; }
 
     .how-text span {
       font-size: 13px;
-      color: #94a3b8;
+      color: #b0bec5;
       line-height: 1.5;
     }
 

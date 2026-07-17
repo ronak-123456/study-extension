@@ -7,6 +7,7 @@ import { initTasks } from './modules/tasks.js';
 import { initTempFocus } from './modules/temp-focus.js';
 import { initSync } from './modules/sync.js';
 import { initSettings } from './modules/settings.js';
+import { initEmailNotif } from './modules/email-notif.js';
 import {
   getAllDomainStats,
   getAllUrlStats,
@@ -38,5 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initPomodoro();
   initTempFocus();
   initTasks();
+  initEmailNotif();
   initSync();
 });
