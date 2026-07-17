@@ -173,7 +173,7 @@ export function stopTracking() {
   if (activeStartTime && activeUrl) {
     const duration = Math.round((Date.now() - activeStartTime) / 1000);
     if (duration > 0) {
-      saveStats(activeDomain, activeUrl, activeTitle, duration);
+      saveStats(activeDomain, activeUrl, activeTitle, duration, activeStartTime);
     }
   }
   if (badgeTimerInterval) {
@@ -314,7 +314,7 @@ export function flushCurrentSession() {
   if (activeTabId && activeStartTime && activeUrl) {
     const duration = Math.round((Date.now() - activeStartTime) / 1000);
     if (duration > 0) {
-      saveStats(activeDomain, activeUrl, activeTitle, duration);
+      saveStats(activeDomain, activeUrl, activeTitle, duration, activeStartTime);
       activeStartTime = Date.now(); // Reset start time after flushing
     }
   }

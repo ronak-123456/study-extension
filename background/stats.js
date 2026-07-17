@@ -7,20 +7,21 @@ import {
   addHourlySeconds,
   addTempFocusSeconds,
   getDomainStatsByDate,
-  getTempFocusLogByDate
+  getTempFocusLogByDate,
+  addFocusSession
 } from '../lib/stats-db.js';
 
 // Serialize stat writes so overlapping tab-switch / flush-alarm events can't
 // produce race conditions during the read-modify-write of hourly categorization.
 let statsWriteChain = Promise.resolve();
 
-export function saveStats(domain, url, title, duration) {
+export function saveStats(domain, url, title, duration, startTime = Date.now() - duration * 1000) {
   statsWriteChain = statsWriteChain
-    .then(() => saveStatsInternal(domain, url, title, duration))
+    .then(() => saveStatsInternal(domain, url, title, duration, startTime))
     .catch(() => { });
 }
 
-function saveStatsInternal(domain, url, title, duration) {
+function saveStatsInternal(domain, url, title, duration, startTime) {
   return new Promise((resolve) => {
     const today = localDateStr();
     const hour = new Date().getHours();
@@ -43,6 +44,8 @@ function saveStatsInternal(domain, url, title, duration) {
 
         // Categorize into focus vs distraction for hourly stats
         const isStudy = data.studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+        let isFocusSession = isStudy;
+
         if (isStudy) {
           await addHourlySeconds(today, hour, duration, 0);
         } else {
@@ -52,6 +55,7 @@ function saveStatsInternal(domain, url, title, duration) {
           );
           if (matchedPass && matchedPass[1].expiresAt > Date.now()) {
             // Temp focus pass active — count as focus
+            isFocusSession = true;
             await addHourlySeconds(today, hour, duration, 0);
             await addTempFocusSeconds(today, domain, duration);
           } else {
@@ -87,6 +91,9 @@ function saveStatsInternal(domain, url, title, duration) {
             }
           }
         }
+
+        // Log the individual session for weighted focus scoring
+        await addFocusSession(today, domain, startTime, duration, isFocusSession);
 
         resolve();
       } catch (err) {
