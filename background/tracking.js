@@ -4,6 +4,7 @@ import { getDomain, localDateStr, isNeutralDomain, isAllowedSiteSearch } from '.
 import { sendGraduatedDistraction, sendStudyEncouragement } from './notifications.js';
 import { checkAllowance } from './allowances.js';
 import { saveStats } from './stats.js';
+import { getDomainStatsByDate, getTempFocusLogByDate } from '../lib/stats-db.js';
 
 // --- Module state ---
 let activeTabId = null;
@@ -55,12 +56,23 @@ export function initTracking() {
 }
 
 // --- Badge ---
+// Prevent overlapping badge updates (since it's now async with IDB reads)
+let badgeUpdateInProgress = false;
+
 export function updateBadge() {
   if (!isEnabled || !activeStartTime || !activeDomain) {
     chrome.action.setBadgeText({ text: '' });
     return;
   }
 
+  // Skip if a previous update is still running (avoids piling up IDB reads)
+  if (badgeUpdateInProgress) return;
+  badgeUpdateInProgress = true;
+
+  updateBadgeAsync().finally(() => { badgeUpdateInProgress = false; });
+}
+
+async function updateBadgeAsync() {
   const durationSec = Math.floor((Date.now() - activeStartTime) / 1000);
   let badgeText = '';
 
@@ -73,78 +85,85 @@ export function updateBadge() {
 
   chrome.action.setBadgeText({ text: badgeText });
 
-  chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {}, tempFocusPasses: {}, tempFocusLog: {} }, (data) => {
-    if (!activeDomain) return;
+  // Read settings from chrome.storage (fast — small data)
+  const data = await new Promise(resolve =>
+    chrome.storage.local.get({ studyDomains: [], allowances: {}, tempFocusPasses: {} }, resolve)
+  );
 
-    let isStudy = data.studyDomains.some(
-      (allowedDomain) =>
-        activeDomain === allowedDomain || activeDomain.endsWith(`.${allowedDomain}`)
+  if (!activeDomain) return;
+
+  let isStudy = data.studyDomains.some(
+    (allowedDomain) =>
+      activeDomain === allowedDomain || activeDomain.endsWith(`.${allowedDomain}`)
+  );
+
+  // Check if domain has an active temp focus pass
+  let hasTempPass = false;
+  if (!isStudy) {
+    const matchedPass = Object.entries(data.tempFocusPasses).find(([d]) =>
+      activeDomain === d || activeDomain.endsWith('.' + d)
     );
-
-    // Check if domain has an active temp focus pass
-    let hasTempPass = false;
-    if (!isStudy) {
-      const matchedPass = Object.entries(data.tempFocusPasses).find(([d]) =>
-        activeDomain === d || activeDomain.endsWith('.' + d)
-      );
-      if (matchedPass && matchedPass[1].expiresAt > Date.now()) {
-        hasTempPass = true;
-      }
+    if (matchedPass && matchedPass[1].expiresAt > Date.now()) {
+      hasTempPass = true;
     }
+  }
 
-    // Check if domain has an active allowance that hasn't been exceeded
-    let isWithinAllowance = false;
-    if (!isStudy && !hasTempPass) {
-      const matchedAllowanceDomain = Object.keys(data.allowances).find(d =>
-        activeDomain === d || activeDomain.endsWith('.' + d)
-      );
-      if (matchedAllowanceDomain) {
-        const { limitSeconds } = data.allowances[matchedAllowanceDomain];
-        const today = localDateStr();
-        const todayStats = data.dailyStats[today] || {};
-        const todayTempFocus = (data.tempFocusLog[today]) || {};
-        let usedSeconds = 0;
-        Object.entries(todayStats).forEach(([d, seconds]) => {
-          if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-            const tempSec = todayTempFocus[d] || 0;
-            usedSeconds += Math.max(0, seconds - tempSec);
-          }
-        });
-        usedSeconds += durationSec;
-        isWithinAllowance = usedSeconds <= limitSeconds;
-      }
+  // Check if domain has an active allowance that hasn't been exceeded
+  let isWithinAllowance = false;
+  if (!isStudy && !hasTempPass) {
+    const matchedAllowanceDomain = Object.keys(data.allowances).find(d =>
+      activeDomain === d || activeDomain.endsWith('.' + d)
+    );
+    if (matchedAllowanceDomain) {
+      const { limitSeconds } = data.allowances[matchedAllowanceDomain];
+      const today = localDateStr();
+      // Read from IndexedDB
+      const todayStats = await getDomainStatsByDate(today);
+      const todayTempFocus = await getTempFocusLogByDate(today);
+      let usedSeconds = 0;
+      Object.entries(todayStats).forEach(([d, seconds]) => {
+        if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
+          const tempSec = todayTempFocus[d] || 0;
+          usedSeconds += Math.max(0, seconds - tempSec);
+        }
+      });
+      usedSeconds += durationSec;
+      isWithinAllowance = usedSeconds <= limitSeconds;
     }
+  }
 
-    chrome.action.setBadgeBackgroundColor({
-      color: (isStudy || hasTempPass) ? '#6abf9b' : (isWithinAllowance ? '#fbbf24' : '#fca5a5')
-    });
-
-    const minutes = Math.floor(durationSec / 60);
-
-    // Sign-in/OAuth pages and searches for an allowed site are neutral
-    const isNeutral = isNeutralDomain(activeDomain) || isAllowedSiteSearch(activeUrl, data.studyDomains);
-
-    // --- Allowance System Check (only for non-study sites without temp pass) ---
-    if (!isStudy && !hasTempPass && !isNeutral) {
-      checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec, activeTabId);
-    }
-
-    // Graduated distraction nudges at each 10-minute mark
-    if (!isStudy && !hasTempPass && !isNeutral && !isWithinAllowance &&
-        minutes >= 10 && minutes % 10 === 0 && minutes !== lastDistractionNudgeMinute) {
-      lastDistractionNudgeMinute = minutes;
-      sendGraduatedDistraction(activeTabId, activeDomain, minutes);
-    }
-
-    // Study encouragement at milestones: 30m, 1h, 1.5h, 2h, 3h
-    if (isStudy) {
-      const studyMilestones = [30, 60, 90, 120, 180];
-      if (studyMilestones.includes(minutes) && minutes !== lastStudyMilestoneMinute) {
-        lastStudyMilestoneMinute = minutes;
-        sendStudyEncouragement(activeTabId, activeDomain, minutes);
-      }
-    }
+  chrome.action.setBadgeBackgroundColor({
+    color: (isStudy || hasTempPass) ? '#6abf9b' : (isWithinAllowance ? '#fbbf24' : '#fca5a5')
   });
+
+  const minutes = Math.floor(durationSec / 60);
+
+  // Sign-in/OAuth pages and searches for an allowed site are neutral
+  const isNeutral = isNeutralDomain(activeDomain) || isAllowedSiteSearch(activeUrl, data.studyDomains);
+
+  // --- Allowance System Check (only for non-study sites without temp pass) ---
+  if (!isStudy && !hasTempPass && !isNeutral) {
+    // Read today's stats from IndexedDB for allowance check
+    const today = localDateStr();
+    const dailyStats = await getDomainStatsByDate(today);
+    checkAllowance(data.allowances, dailyStats, activeDomain, durationSec, activeTabId);
+  }
+
+  // Graduated distraction nudges at each 10-minute mark
+  if (!isStudy && !hasTempPass && !isNeutral && !isWithinAllowance &&
+      minutes >= 10 && minutes % 10 === 0 && minutes !== lastDistractionNudgeMinute) {
+    lastDistractionNudgeMinute = minutes;
+    sendGraduatedDistraction(activeTabId, activeDomain, minutes);
+  }
+
+  // Study encouragement at milestones: 30m, 1h, 1.5h, 2h, 3h
+  if (isStudy) {
+    const studyMilestones = [30, 60, 90, 120, 180];
+    if (studyMilestones.includes(minutes) && minutes !== lastStudyMilestoneMinute) {
+      lastStudyMilestoneMinute = minutes;
+      sendStudyEncouragement(activeTabId, activeDomain, minutes);
+    }
+  }
 }
 
 // --- Tracking lifecycle ---

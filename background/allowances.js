@@ -2,6 +2,7 @@
 
 import { localDateStr } from './utils.js';
 import { sendAllowanceNotification } from './notifications.js';
+import { getTempFocusLogByDate } from '../lib/stats-db.js';
 
 let lastAllowanceWarning = 0;
 const ALLOWANCE_WARNING_COOLDOWN = 60000; // 1 min between warnings
@@ -9,8 +10,14 @@ const ALLOWANCE_WARNING_COOLDOWN = 60000; // 1 min between warnings
 /**
  * Check if the current domain has exceeded or is nearing its daily allowance.
  * Called once per badge tick for non-study, non-temp-pass, non-neutral sites.
+ *
+ * @param {object} allowances - from chrome.storage.local
+ * @param {object} dailyStats - today's domain stats from IndexedDB (already read by caller)
+ * @param {string} domain - the currently active domain
+ * @param {number} currentSessionSeconds - seconds in the current unsaved session
+ * @param {number} activeTabId - the tab to show overlays on
  */
-export function checkAllowance(allowances, dailyStats, domain, currentSessionSeconds, activeTabId) {
+export async function checkAllowance(allowances, dailyStats, domain, currentSessionSeconds, activeTabId) {
   if (!domain || !allowances || Object.keys(allowances).length === 0) return;
 
   // Find matching allowance for this domain
@@ -22,39 +29,37 @@ export function checkAllowance(allowances, dailyStats, domain, currentSessionSec
 
   const { limitSeconds } = allowances[matchedAllowanceDomain];
   const today = localDateStr();
-  const todayStats = dailyStats[today] || {};
 
-  // Calculate total used time today (saved + current session), minus temp focus time
-  chrome.storage.local.get({ tempFocusLog: {} }, (tfData) => {
-    const todayTempFocus = (tfData.tempFocusLog || {})[today] || {};
-    let usedSeconds = 0;
-    Object.entries(todayStats).forEach(([d, seconds]) => {
-      if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-        const tempSec = todayTempFocus[d] || 0;
-        usedSeconds += Math.max(0, seconds - tempSec);
-      }
-    });
-    usedSeconds += currentSessionSeconds;
+  // Read tempFocusLog from IndexedDB
+  const todayTempFocus = await getTempFocusLogByDate(today);
 
-    const remainingSeconds = limitSeconds - usedSeconds;
-    const now = Date.now();
-
-    // Warning thresholds
-    if (remainingSeconds <= 0) {
-      if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
-        lastAllowanceWarning = now;
-        sendAllowanceNotification(activeTabId, matchedAllowanceDomain, 0, limitSeconds, 'exceeded');
-      }
-    } else if (remainingSeconds <= 60 && remainingSeconds > 0) {
-      if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
-        lastAllowanceWarning = now;
-        sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'critical');
-      }
-    } else if (remainingSeconds <= 300 && currentSessionSeconds % 60 === 0) {
-      if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
-        lastAllowanceWarning = now;
-        sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'warning');
-      }
+  let usedSeconds = 0;
+  Object.entries(dailyStats).forEach(([d, seconds]) => {
+    if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
+      const tempSec = todayTempFocus[d] || 0;
+      usedSeconds += Math.max(0, seconds - tempSec);
     }
   });
+  usedSeconds += currentSessionSeconds;
+
+  const remainingSeconds = limitSeconds - usedSeconds;
+  const now = Date.now();
+
+  // Warning thresholds
+  if (remainingSeconds <= 0) {
+    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+      lastAllowanceWarning = now;
+      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, 0, limitSeconds, 'exceeded');
+    }
+  } else if (remainingSeconds <= 60 && remainingSeconds > 0) {
+    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+      lastAllowanceWarning = now;
+      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'critical');
+    }
+  } else if (remainingSeconds <= 300 && currentSessionSeconds % 60 === 0) {
+    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+      lastAllowanceWarning = now;
+      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'warning');
+    }
+  }
 }

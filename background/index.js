@@ -22,6 +22,7 @@ import {
   getActiveStartTime,
   getIsEnabled
 } from './tracking.js';
+import { importLegacyData } from '../lib/stats-db.js';
 
 // =============================================
 // Constants
@@ -142,6 +143,9 @@ chrome.runtime.onInstalled.addListener((details) => {
       chrome.storage.local.set({ studyDomains: normalized });
     }
   });
+
+  // Migrate time-tracking data from chrome.storage.local to IndexedDB (one-time)
+  migrateStatsToIndexedDB();
 
   chrome.alarms.create('flushStats', { periodInMinutes: 30 });
   scheduleDailySummaryAlarm();
@@ -284,3 +288,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.notifications.onClicked.addListener((id) => {
   chrome.notifications.clear(id);
 });
+
+// =============================================
+// One-time migration: chrome.storage.local → IndexedDB
+// =============================================
+async function migrateStatsToIndexedDB() {
+  try {
+    // Check if migration has already been done
+    const { idbMigrated } = await new Promise(resolve =>
+      chrome.storage.local.get({ idbMigrated: false }, resolve)
+    );
+    if (idbMigrated) return;
+
+    // Read existing time-tracking data from chrome.storage.local
+    const data = await new Promise(resolve =>
+      chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {}, hourlyStats: {}, tempFocusLog: {} }, resolve)
+    );
+
+    const hasData = Object.keys(data.dailyStats).length > 0 ||
+                    Object.keys(data.dailyUrlStats).length > 0 ||
+                    Object.keys(data.hourlyStats).length > 0 ||
+                    Object.keys(data.tempFocusLog).length > 0;
+
+    if (hasData) {
+      // Import into IndexedDB
+      await importLegacyData({
+        dailyStats: data.dailyStats,
+        dailyUrlStats: data.dailyUrlStats,
+        hourlyStats: data.hourlyStats,
+        tempFocusLog: data.tempFocusLog
+      });
+      console.log('[Hocus Focus] Migrated time-tracking data to IndexedDB');
+
+      // Remove migrated keys from chrome.storage.local to free space
+      // (but only after successful import)
+      chrome.storage.local.remove(['dailyStats', 'dailyUrlStats', 'hourlyStats', 'tempFocusLog']);
+    }
+
+    // Mark migration as complete
+    chrome.storage.local.set({ idbMigrated: true });
+  } catch (err) {
+    console.error('[Hocus Focus] Migration to IndexedDB failed:', err);
+    // Don't mark as migrated — will retry on next install/update
+  }
+}
