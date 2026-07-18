@@ -62,12 +62,24 @@
     } from './lib/stats-db.js';
 
     const IDB_KEYS = ['dailyStats', 'dailyUrlStats', 'hourlyStats', 'tempFocusLog'];
-    const idbData = {
+    let idbData = {
       dailyStats: await getAllDomainStats(),
       dailyUrlStats: await getAllUrlStats(),
       hourlyStats: await getAllHourlyStats(),
       tempFocusLog: await getAllTempFocusLog()
     };
+
+    // Fallback: if IDB is empty, data might still be in chrome.storage.local
+    const idbIsEmpty = Object.keys(idbData.dailyStats).length === 0 &&
+                       Object.keys(idbData.hourlyStats).length === 0;
+    if (idbIsEmpty) {
+      const fallback = await new Promise(resolve =>
+        chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {}, hourlyStats: {}, tempFocusLog: {} }, resolve)
+      );
+      if (Object.keys(fallback.dailyStats).length > 0) {
+        idbData = fallback;
+      }
+    }
 
     window._statsDB = {
       getDomainStatsByDate, getTempFocusLogByDate, getSessionsByDate,
