@@ -9,7 +9,17 @@ function localDateStr(d = new Date()) {
 let currentViewDate = new Date();
 let currentViewMode = 'daily'; // 'daily' or 'weekly'
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', initDashboard);
+// If loaded dynamically after DOM is ready (e.g., via module bootstrap), init immediately
+if (document.readyState !== 'loading') {
+    initDashboard();
+}
+
+function initDashboard() {
+    // Guard against double-init
+    if (initDashboard._done) return;
+    initDashboard._done = true;
+
     updateDashboard();
 
     document.getElementById('focusInfoBtn').addEventListener('click', (e) => {
@@ -133,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateDashboard();
         }
     });
-});
+}
 
 function updateThemeUI(isDark) {
     const moonIcon = document.getElementById('moonIcon');

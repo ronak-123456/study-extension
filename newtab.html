@@ -54,7 +54,58 @@
     <a href="#" class="newtab-dashboard-link" id="dashboardLink">Open Full Dashboard</a>
   </div>
 
-  <script type="module" src="lib/stats-db-loader.js"></script>
-  <script src="newtab.js"></script>
+  <script type="module">
+    import {
+      getAllDomainStats, getAllUrlStats, getAllHourlyStats, getAllTempFocusLog,
+      getDomainStatsByDate, getTempFocusLogByDate, getSessionsByDate,
+      calculateWeightedScore, calculateSimpleScore
+    } from './lib/stats-db.js';
+
+    const IDB_KEYS = ['dailyStats', 'dailyUrlStats', 'hourlyStats', 'tempFocusLog'];
+    const idbData = {
+      dailyStats: await getAllDomainStats(),
+      dailyUrlStats: await getAllUrlStats(),
+      hourlyStats: await getAllHourlyStats(),
+      tempFocusLog: await getAllTempFocusLog()
+    };
+
+    window._statsDB = {
+      getDomainStatsByDate, getTempFocusLogByDate, getSessionsByDate,
+      calculateWeightedScore, calculateSimpleScore,
+      getAllDomainStats, getAllUrlStats, getAllHourlyStats, getAllTempFocusLog
+    };
+
+    const originalGet = chrome.storage.local.get.bind(chrome.storage.local);
+    chrome.storage.local.get = function(keysOrDefaults, callback) {
+      let requestedKeys = [];
+      let defaults = {};
+      if (Array.isArray(keysOrDefaults)) { requestedKeys = keysOrDefaults; }
+      else if (typeof keysOrDefaults === 'object' && keysOrDefaults !== null) { requestedKeys = Object.keys(keysOrDefaults); defaults = keysOrDefaults; }
+      else if (typeof keysOrDefaults === 'string') { requestedKeys = [keysOrDefaults]; }
+      else { requestedKeys = IDB_KEYS; }
+
+      const idbKeysNeeded = requestedKeys.filter(k => IDB_KEYS.includes(k));
+      const chromeKeysNeeded = requestedKeys.filter(k => !IDB_KEYS.includes(k));
+      if (idbKeysNeeded.length === 0) return originalGet(keysOrDefaults, callback);
+
+      const chromeGet = chromeKeysNeeded.length > 0
+        ? new Promise(resolve => {
+            const cd = {}; chromeKeysNeeded.forEach(k => { if (k in defaults) cd[k] = defaults[k]; });
+            originalGet(Object.keys(cd).length > 0 ? cd : chromeKeysNeeded, resolve);
+          })
+        : Promise.resolve({});
+
+      chromeGet.then(chromeData => {
+        const result = { ...chromeData };
+        idbKeysNeeded.forEach(key => { if (idbData[key] !== undefined) result[key] = idbData[key]; });
+        Object.entries(defaults).forEach(([k, v]) => { if (!(k in result) || result[k] === undefined) result[k] = v; });
+        if (callback) callback(result);
+      });
+    };
+
+    const script = document.createElement('script');
+    script.src = 'newtab.js';
+    document.body.appendChild(script);
+  </script>
 </body>
 </html>
