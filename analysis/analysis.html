@@ -392,8 +392,107 @@
 
         </main>
     </div>
-    <script type="module" src="../lib/stats-db-loader.js"></script>
-    <script src="analysis.js"></script>
+    <script type="module">
+      // Bootstrap: load IDB data, patch chrome.storage.local.get, then load analysis.js
+      import {
+        getAllDomainStats,
+        getAllUrlStats,
+        getAllHourlyStats,
+        getAllTempFocusLog,
+        getDomainStatsByDate,
+        getUrlStatsByDate,
+        getHourlyStatsByDate,
+        getTempFocusLogByDate,
+        getDomainStatsRange,
+        getSessionsByDate,
+        getSessionsRange,
+        calculateWeightedScore,
+        calculateSimpleScore
+      } from '../lib/stats-db.js';
+
+      const IDB_KEYS = ['dailyStats', 'dailyUrlStats', 'hourlyStats', 'tempFocusLog'];
+
+      // Load all IDB data upfront
+      let idbData = {
+        dailyStats: await getAllDomainStats(),
+        dailyUrlStats: await getAllUrlStats(),
+        hourlyStats: await getAllHourlyStats(),
+        tempFocusLog: await getAllTempFocusLog()
+      };
+
+      // Fallback: if IDB is empty, data might still be in chrome.storage.local
+      // (migration hasn't run yet). Read from there as a safety net.
+      const idbIsEmpty = Object.keys(idbData.dailyStats).length === 0 &&
+                         Object.keys(idbData.hourlyStats).length === 0;
+      if (idbIsEmpty) {
+        const fallback = await new Promise(resolve =>
+          chrome.storage.local.get({ dailyStats: {}, dailyUrlStats: {}, hourlyStats: {}, tempFocusLog: {} }, resolve)
+        );
+        if (Object.keys(fallback.dailyStats).length > 0) {
+          idbData = fallback;
+        }
+      }
+
+      // Expose functions globally
+      window._statsDB = {
+        getDomainStatsByDate, getUrlStatsByDate, getHourlyStatsByDate,
+        getTempFocusLogByDate, getDomainStatsRange, getAllDomainStats,
+        getAllUrlStats, getAllHourlyStats, getAllTempFocusLog,
+        getSessionsByDate, getSessionsRange, calculateWeightedScore, calculateSimpleScore
+      };
+
+      // Patch chrome.storage.local.get BEFORE analysis.js runs
+      const originalGet = chrome.storage.local.get.bind(chrome.storage.local);
+      chrome.storage.local.get = function(keysOrDefaults, callback) {
+        let requestedKeys = [];
+        let defaults = {};
+
+        if (Array.isArray(keysOrDefaults)) {
+          requestedKeys = keysOrDefaults;
+        } else if (typeof keysOrDefaults === 'object' && keysOrDefaults !== null) {
+          requestedKeys = Object.keys(keysOrDefaults);
+          defaults = keysOrDefaults;
+        } else if (typeof keysOrDefaults === 'string') {
+          requestedKeys = [keysOrDefaults];
+        } else {
+          requestedKeys = IDB_KEYS;
+        }
+
+        const idbKeysNeeded = requestedKeys.filter(k => IDB_KEYS.includes(k));
+        const chromeKeysNeeded = requestedKeys.filter(k => !IDB_KEYS.includes(k));
+
+        if (idbKeysNeeded.length === 0) {
+          return originalGet(keysOrDefaults, callback);
+        }
+
+        const chromeGet = chromeKeysNeeded.length > 0
+          ? new Promise(resolve => {
+              const chromeDefaults = {};
+              chromeKeysNeeded.forEach(k => { if (k in defaults) chromeDefaults[k] = defaults[k]; });
+              originalGet(Object.keys(chromeDefaults).length > 0 ? chromeDefaults : chromeKeysNeeded, resolve);
+            })
+          : Promise.resolve({});
+
+        chromeGet.then(chromeData => {
+          const result = { ...chromeData };
+          idbKeysNeeded.forEach(key => {
+            if (idbData[key] !== undefined) result[key] = idbData[key];
+          });
+          Object.entries(defaults).forEach(([k, v]) => {
+            if (!(k in result) || result[k] === undefined) result[k] = v;
+          });
+          if (callback) callback(result);
+        });
+      };
+
+      // NOW load analysis.js — the patch is in place
+      // Since DOMContentLoaded has already fired by the time a module runs,
+      // we signal analysis.js to init immediately via a global flag.
+      window.__idbReady = true;
+      const script = document.createElement('script');
+      script.src = 'analysis.js';
+      document.body.appendChild(script);
+    </script>
 </body>
 
 </html>
