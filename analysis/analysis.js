@@ -9,17 +9,7 @@ function localDateStr(d = new Date()) {
 let currentViewDate = new Date();
 let currentViewMode = 'daily'; // 'daily' or 'weekly'
 
-document.addEventListener('DOMContentLoaded', initDashboard);
-// If loaded dynamically after DOM is ready (e.g., via module bootstrap), init immediately
-if (document.readyState !== 'loading') {
-    initDashboard();
-}
-
-function initDashboard() {
-    // Guard against double-init
-    if (initDashboard._done) return;
-    initDashboard._done = true;
-
+document.addEventListener('DOMContentLoaded', () => {
     updateDashboard();
 
     document.getElementById('focusInfoBtn').addEventListener('click', (e) => {
@@ -143,7 +133,7 @@ function initDashboard() {
             updateDashboard();
         }
     });
-}
+});
 
 function updateThemeUI(isDark) {
     const moonIcon = document.getElementById('moonIcon');
@@ -305,37 +295,9 @@ function updateDashboard() {
         const streak = calculateStreak(stats, studyDomains);
         document.getElementById('streakCount').textContent = `${streak} day${streak !== 1 ? 's' : ''}`;
 
-        // Focus Score — uses weighted algorithm if session data is available
+        // Focus Score
         const total = focusSeconds + distractionSeconds;
-        let score = total > 0 ? Math.round((focusSeconds / total) * 100) : 0;
-        let longestStreak = 0;
-
-        if (window._statsDB && window._statsDB.getSessionsByDate) {
-          (async () => {
-            try {
-              let allSessions = [];
-              for (const date of datesToProcess) {
-                const daySessions = await window._statsDB.getSessionsByDate(date);
-                allSessions = allSessions.concat(daySessions);
-              }
-              if (allSessions.length > 0) {
-                const weighted = window._statsDB.calculateWeightedScore(allSessions);
-                score = weighted.score;
-                longestStreak = weighted.longestStreak;
-                document.getElementById('focusScore').textContent = score;
-                // Show longest streak if we have a place for it
-                const streakEl = document.getElementById('longestSessionDisplay');
-                if (streakEl) {
-                  const mins = Math.floor(longestStreak / 60);
-                  streakEl.textContent = mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m`;
-                }
-              }
-            } catch (e) {
-              // Fallback to simple score already set
-            }
-          })();
-        }
-
+        const score = total > 0 ? Math.round((focusSeconds / total) * 100) : 0;
         document.getElementById('focusScore').textContent = score;
 
         // Trends (Simulated or based on prev period)
