@@ -113,27 +113,9 @@ chrome.storage.local.get(['dailyStats', 'studyDomains', 'customNudges', 'allowan
   });
 
   const total = focusSeconds + distractionSeconds;
-  let score = total > 0 ? Math.round((focusSeconds / total) * 100) : 0;
+  const score = total > 0 ? Math.round((focusSeconds / total) * 100) : 0;
 
-  // Use weighted score if session data is available
-  if (window._statsDB && window._statsDB.getSessionsByDate) {
-    window._statsDB.getSessionsByDate(today).then(sessions => {
-      if (sessions && sessions.length > 0) {
-        const weighted = window._statsDB.calculateWeightedScore(sessions);
-        score = weighted.score;
-        document.getElementById('scoreValue').textContent = score;
-        const circumference = 2 * Math.PI * 52;
-        const offset = circumference - (score / 100) * circumference;
-        document.getElementById('scoreFill').style.strokeDashoffset = offset;
-        const fill = document.getElementById('scoreFill');
-        if (score >= 70) fill.style.stroke = '#2dd4bf';
-        else if (score >= 40) fill.style.stroke = '#fbbf24';
-        else fill.style.stroke = '#f87171';
-      }
-    }).catch(() => {});
-  }
-
-  // Score (initial render with simple calculation — updated async above)
+  // Score
   document.getElementById('scoreValue').textContent = score;
   const circumference = 2 * Math.PI * 52; // 326.73
   const offset = circumference - (score / 100) * circumference;
