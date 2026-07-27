@@ -202,11 +202,6 @@ function updateDashboard() {
         const tempFocusLog = data.tempFocusLog || {};
         const tempFocusPasses = data.tempFocusPasses || {};
 
-        let focusSeconds = 0;
-        let distractionSeconds = 0;
-        let sitesVisited = new Set();
-        let domainAggregation = {};
-
         // Date range to process
         const datesToProcess = [];
         if (isWeekly) {
@@ -219,71 +214,23 @@ function updateDashboard() {
             datesToProcess.push(dateString);
         }
 
-        // Aggregate stats
-        datesToProcess.forEach(date => {
-            const dayStats = stats[date] || {};
-            const dayTempFocus = tempFocusLog[date] || {};
-            Object.entries(dayStats).forEach(([domain, seconds]) => {
-                const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
-                
-                // Check if domain has temp focus time logged
-                let tempFocusSeconds = dayTempFocus[domain] || 0;
-                
-                // Also check if there's a currently active pass for this domain
-                // (covers time tracked before tempFocusLog was introduced)
-                if (!isStudy && tempFocusSeconds === 0) {
-                    const hasActivePass = Object.entries(tempFocusPasses).find(([d, p]) =>
-                        (domain === d || domain.endsWith('.' + d)) && p.expiresAt > Date.now()
-                    );
-                    if (hasActivePass) {
-                        // All time today on this domain during an active pass counts as focus
-                        tempFocusSeconds = seconds;
-                    }
-                }
-                
-                if (isStudy) {
-                    focusSeconds += seconds;
-                } else if (tempFocusSeconds > 0) {
-                    // Time under temp focus pass counts as deep work
-                    focusSeconds += Math.min(tempFocusSeconds, seconds);
-                    const remainingSeconds = seconds - Math.min(tempFocusSeconds, seconds);
-                    if (remainingSeconds > 0) {
-                        // Remaining time: check allowance
-                        const matchedAllowance = Object.keys(allowances).find(d =>
-                            domain === d || domain.endsWith('.' + d)
-                        );
-                        if (matchedAllowance) {
-                            const limitSeconds = allowances[matchedAllowance].limitSeconds || 0;
-                            if (remainingSeconds > limitSeconds) {
-                                distractionSeconds += (remainingSeconds - limitSeconds);
-                            }
-                        } else {
-                            distractionSeconds += remainingSeconds;
-                        }
-                    }
-                } else {
-                    // Check if domain has an allowance
-                    const matchedAllowance = Object.keys(allowances).find(d =>
-                        domain === d || domain.endsWith('.' + d)
-                    );
-                    if (matchedAllowance) {
-                        const limitSeconds = allowances[matchedAllowance].limitSeconds || 0;
-                        if (seconds > limitSeconds) {
-                            distractionSeconds += (seconds - limitSeconds);
-                        }
-                    } else {
-                        distractionSeconds += seconds;
-                    }
-                }
+        // Shared with the new tab page so the two can't report different
+        // numbers for the same day — see lib/focus-math.js
+        const breakdown = self.HocusFocusMath.computeFocusBreakdown(datesToProcess, {
+            dailyStats: stats, studyDomains, allowances, tempFocusLog, tempFocusPasses
+        });
+        const focusSeconds = breakdown.focusSeconds;
+        const distractionSeconds = breakdown.distractionSeconds;
+        const sitesVisited = breakdown.sites;
 
-                sitesVisited.add(domain);
-
-                const friendly = getFriendlyName(domain);
-                if (!domainAggregation[friendly]) {
-                    domainAggregation[friendly] = { seconds: 0, isStudy: isStudy || tempFocusSeconds > 0 };
-                }
-                domainAggregation[friendly].seconds += seconds;
-            });
+        // Charts label by friendly name, so several domains can merge into one row.
+        const domainAggregation = {};
+        breakdown.domains.forEach(({ domain, seconds, isStudy }) => {
+            const friendly = getFriendlyName(domain);
+            if (!domainAggregation[friendly]) {
+                domainAggregation[friendly] = { seconds: 0, isStudy };
+            }
+            domainAggregation[friendly].seconds += seconds;
         });
 
         // Update Stats Cards

@@ -55,65 +55,13 @@ chrome.storage.local.get(['dailyStats', 'studyDomains', 'customNudges', 'allowan
   const allowances = data.allowances || {};
   const tempFocusLog = data.tempFocusLog || {};
   const tempFocusPasses = data.tempFocusPasses || {};
-  const todayStats = stats[today] || {};
-  const todayTempFocus = tempFocusLog[today] || {};
+  const { computeFocusBreakdown, focusScore } = self.HocusFocusMath;
+  const { focusSeconds, distractionSeconds, sites, domains: domainTimes } =
+    computeFocusBreakdown([today], {
+      dailyStats: stats, studyDomains, allowances, tempFocusLog, tempFocusPasses
+    });
 
-  let focusSeconds = 0;
-  let distractionSeconds = 0;
-  let sites = new Set();
-  const domainTimes = [];
-
-  Object.entries(todayStats).forEach(([domain, seconds]) => {
-    const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
-    let tempFocusSeconds = todayTempFocus[domain] || 0;
-
-    // Check if there's a currently active pass for this domain
-    if (!isStudy && tempFocusSeconds === 0) {
-      const hasActivePass = Object.entries(tempFocusPasses).find(([d, p]) =>
-        (domain === d || domain.endsWith('.' + d)) && p.expiresAt > Date.now()
-      );
-      if (hasActivePass) {
-        tempFocusSeconds = seconds;
-      }
-    }
-
-    if (isStudy) {
-      focusSeconds += seconds;
-    } else if (tempFocusSeconds > 0) {
-      focusSeconds += Math.min(tempFocusSeconds, seconds);
-      const remaining = seconds - Math.min(tempFocusSeconds, seconds);
-      if (remaining > 0) {
-        const matchedAllowance = Object.keys(allowances).find(d =>
-          domain === d || domain.endsWith('.' + d)
-        );
-        if (matchedAllowance) {
-          const limitSeconds = allowances[matchedAllowance].limitSeconds || 0;
-          if (remaining > limitSeconds) {
-            distractionSeconds += (remaining - limitSeconds);
-          }
-        } else {
-          distractionSeconds += remaining;
-        }
-      }
-    } else {
-      const matchedAllowance = Object.keys(allowances).find(d =>
-        domain === d || domain.endsWith('.' + d)
-      );
-      if (matchedAllowance) {
-        const limitSeconds = allowances[matchedAllowance].limitSeconds || 0;
-        if (seconds > limitSeconds) {
-          distractionSeconds += (seconds - limitSeconds);
-        }
-      } else {
-        distractionSeconds += seconds;
-      }
-    }
-    sites.add(domain);
-    domainTimes.push({ domain, seconds, isStudy: isStudy || tempFocusSeconds > 0 });
-  });
-
-  const total = focusSeconds + distractionSeconds;
-  const score = total > 0 ? Math.round((focusSeconds / total) * 100) : 0;
+  const score = focusScore(focusSeconds, distractionSeconds);
 
   // Score
   document.getElementById('scoreValue').textContent = score;
