@@ -114,6 +114,21 @@ A Chrome extension that helps you stay productive by monitoring your browsing ha
 5. Click **Load unpacked** → select the project folder
 6. Pin the extension icon in your toolbar — done!
 
+### Running the tests
+
+```bash
+npm test
+```
+
+This loads the unpacked extension into a headless browser and drives the real
+service worker, popup and pages over the DevTools protocol — no mocks. It covers
+time tracking across service-worker restarts, the nudge overlay, popup actions,
+and the weekly summary.
+
+> Chrome 137+ ignores the `--load-extension` switch, so the suite looks for
+> **Microsoft Edge** or **Chromium**. With only stock Chrome installed it skips
+> rather than reporting a false pass.
+
 ### Rebuilding Firebase Bundle
 
 Only needed if you modify `src/firebase-bundle-src.js`:
