@@ -29,6 +29,9 @@ chrome.storage.local.get({ extensionEnabled: true }, (data) => {
 
 // Listen for storage changes to sync isEnabled
 chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && BADGE_SETTING_KEYS.some(k => changes[k])) {
+    badgeSettings = null;
+  }
   if (area === 'local' && changes.extensionEnabled) {
     isEnabled = changes.extensionEnabled.newValue;
     if (!isEnabled) {
@@ -42,6 +45,25 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
   }
 });
+
+// updateBadge runs once a second, so it reads settings from this cache rather
+// than hitting chrome.storage every tick. The onChanged listener below drops the
+// cache whenever any of these keys is written, including by our own saveStats.
+const BADGE_SETTING_KEYS = ['studyDomains', 'allowances', 'dailyStats', 'tempFocusPasses', 'tempFocusLog'];
+let badgeSettings = null;
+
+function withBadgeSettings(callback) {
+  if (badgeSettings) {
+    callback(badgeSettings);
+    return;
+  }
+  chrome.storage.local.get({
+    studyDomains: [], allowances: {}, dailyStats: {}, tempFocusPasses: {}, tempFocusLog: {}
+  }, (data) => {
+    badgeSettings = data;
+    callback(data);
+  });
+}
 
 function updateBadge() {
   if (!isEnabled || !activeStartTime || !activeDomain) {
@@ -62,7 +84,7 @@ function updateBadge() {
   chrome.action.setBadgeText({ text: badgeText });
 
   // Update periodic reminder if on distraction
-  chrome.storage.local.get({ studyDomains: [], allowances: {}, dailyStats: {}, tempFocusPasses: {}, tempFocusLog: {} }, (data) => {
+  withBadgeSettings((data) => {
     if (!activeDomain) return;
 
     let isStudy = data.studyDomains.some(
@@ -116,7 +138,7 @@ function updateBadge() {
 
     // --- Allowance System Check (only for non-study sites without temp pass) ---
     if (!isStudy && !hasTempPass && !isNeutral) {
-      checkAllowance(data.allowances, data.dailyStats, activeDomain, durationSec);
+      checkAllowance(data.allowances, data.dailyStats, data.tempFocusLog, activeDomain, durationSec);
     }
 
     // Graduated distraction nudges at each 10-minute mark. Minute-based (not an
@@ -156,12 +178,42 @@ function getDomain(url) {
   }
 }
 
+// Upper bound on time credited to a session recovered from storage. MV3 tears
+// the worker down every ~30s, so recovery is the normal path, not an edge case.
+// But a session that has been open far longer than the flush interval is stale
+// (e.g. the machine slept), so we don't bank it.
+const MAX_RECOVERED_SESSION_SEC = 60 * 60;
+
+// Bank the elapsed time of a session that a worker teardown interrupted. Without
+// this, any time on a page is lost whenever the worker dies mid-session.
+function flushRecoveredSession(state) {
+  if (!state || !state.startTime || !state.url) return;
+  const duration = Math.round((Date.now() - state.startTime) / 1000);
+  if (duration > 0 && duration <= MAX_RECOVERED_SESSION_SEC) {
+    saveStats(state.domain, state.url, state.title, duration);
+  }
+}
+
+function clearSessionTrackingState() {
+  if (chrome.storage.session) {
+    chrome.storage.session.remove('trackingState');
+  }
+}
+
 function stopTracking() {
   if (activeStartTime && activeUrl) {
     const duration = Math.round((Date.now() - activeStartTime) / 1000);
     if (duration > 0) {
       saveStats(activeDomain, activeUrl, activeTitle, duration);
     }
+    clearSessionTrackingState();
+  } else if (chrome.storage.session) {
+    // No in-memory session, but tracking may still have been running before the
+    // worker restarted — recover that time from storage instead of dropping it.
+    chrome.storage.session.get('trackingState', (data) => {
+      if (!chrome.runtime.lastError) flushRecoveredSession(data.trackingState);
+      clearSessionTrackingState();
+    });
   }
   if (badgeTimerInterval) {
     clearInterval(badgeTimerInterval);
@@ -169,9 +221,6 @@ function stopTracking() {
   }
   chrome.alarms.clear('keepAlive');
   chrome.action.setBadgeText({ text: '' });
-  if (chrome.storage.session) {
-    chrome.storage.session.remove('trackingState');
-  }
   activeTabId = null;
   activeStartTime = null;
   activeDomain = null;
@@ -214,6 +263,9 @@ function startTracking(tabId, url, title) {
           }
           updateBadge();
         } else {
+          // The worker restarted and the user has since navigated away. Bank the
+          // interrupted session's time before starting a new one.
+          flushRecoveredSession(data.trackingState);
           beginFreshTracking(tabId, url, title, domain);
         }
       });
@@ -242,8 +294,11 @@ function beginFreshTracking(tabId, url, title, domain) {
     });
   }
 
-  // Keep service worker alive while tracking
-  chrome.alarms.create('keepAlive', { periodInMinutes: 0.4 });
+  // Nudge the worker awake while tracking. 0.5 is Chrome's minimum period —
+  // anything smaller is silently clamped. This is best-effort only: the worker
+  // can still be torn down between ticks, which is why stopTracking and
+  // startTracking both recover the pending session from chrome.storage.session.
+  chrome.alarms.create('keepAlive', { periodInMinutes: 0.5 });
 
   if (!badgeTimerInterval) {
     badgeTimerInterval = setInterval(updateBadge, 1000);
@@ -504,7 +559,7 @@ function sendStudyEncouragement(tabId, domain, minutes) {
 let lastAllowanceWarning = 0;
 const ALLOWANCE_WARNING_COOLDOWN = 60000; // 1 min between warnings
 
-function checkAllowance(allowances, dailyStats, domain, currentSessionSeconds) {
+function checkAllowance(allowances, dailyStats, tempFocusLog, domain, currentSessionSeconds) {
   if (!domain || !allowances || Object.keys(allowances).length === 0) return;
 
   // Find matching allowance for this domain
@@ -518,43 +573,41 @@ function checkAllowance(allowances, dailyStats, domain, currentSessionSeconds) {
   const today = localDateStr();
   const todayStats = dailyStats[today] || {};
 
-  // Calculate total used time today (saved + current session), minus temp focus time
-  chrome.storage.local.get({ tempFocusLog: {} }, (tfData) => {
-    const todayTempFocus = (tfData.tempFocusLog || {})[today] || {};
-    let usedSeconds = 0;
-    Object.entries(todayStats).forEach(([d, seconds]) => {
-      if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
-        // Subtract temp focus time — it shouldn't count against allowance
-        const tempSec = todayTempFocus[d] || 0;
-        usedSeconds += Math.max(0, seconds - tempSec);
-      }
-    });
-    usedSeconds += currentSessionSeconds;
-
-    const remainingSeconds = limitSeconds - usedSeconds;
-    const now = Date.now();
-
-    // Warning thresholds
-    if (remainingSeconds <= 0) {
-      // Time's up — send block message
-      if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
-        lastAllowanceWarning = now;
-        sendAllowanceNotification(activeTabId, matchedAllowanceDomain, 0, limitSeconds, 'exceeded');
-      }
-    } else if (remainingSeconds <= 60 && remainingSeconds > 0) {
-      // Less than 1 minute left
-      if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
-        lastAllowanceWarning = now;
-        sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'critical');
-      }
-    } else if (remainingSeconds <= 300 && currentSessionSeconds % 60 === 0) {
-      // Less than 5 minutes — countdown every minute
-      if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
-        lastAllowanceWarning = now;
-        sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'warning');
-      }
+  // Total used today (saved + current session), minus time under a temp focus pass
+  const todayTempFocus = (tempFocusLog || {})[today] || {};
+  let usedSeconds = 0;
+  Object.entries(todayStats).forEach(([d, seconds]) => {
+    if (d === matchedAllowanceDomain || d.endsWith('.' + matchedAllowanceDomain)) {
+      // Subtract temp focus time — it shouldn't count against allowance
+      const tempSec = todayTempFocus[d] || 0;
+      usedSeconds += Math.max(0, seconds - tempSec);
     }
   });
+  usedSeconds += currentSessionSeconds;
+
+  const remainingSeconds = limitSeconds - usedSeconds;
+  const now = Date.now();
+
+  // Warning thresholds
+  if (remainingSeconds <= 0) {
+    // Time's up — send block message
+    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+      lastAllowanceWarning = now;
+      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, 0, limitSeconds, 'exceeded');
+    }
+  } else if (remainingSeconds <= 60 && remainingSeconds > 0) {
+    // Less than 1 minute left
+    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+      lastAllowanceWarning = now;
+      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'critical');
+    }
+  } else if (remainingSeconds <= 300 && currentSessionSeconds % 60 === 0) {
+    // Less than 5 minutes — countdown every minute
+    if (now - lastAllowanceWarning > ALLOWANCE_WARNING_COOLDOWN) {
+      lastAllowanceWarning = now;
+      sendAllowanceNotification(activeTabId, matchedAllowanceDomain, remainingSeconds, limitSeconds, 'warning');
+    }
+  }
 }
 
 function sendAllowanceNotification(tabId, domain, remainingSeconds, limitSeconds, level) {
@@ -775,6 +828,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
   chrome.alarms.create('flushStats', { periodInMinutes: 30 });
   scheduleDailySummaryAlarm();
+  scheduleWeeklySummaryAlarm();
   chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] }, (tabs) => {
     tabs.forEach((tab) => {
       chrome.scripting.executeScript({
@@ -804,6 +858,7 @@ chrome.runtime.onStartup.addListener(() => {
     if (tabs[0]) startTracking(tabs[0].id, tabs[0].url, tabs[0].title);
   });
   scheduleDailySummaryAlarm();
+  scheduleWeeklySummaryAlarm();
   checkSummaryNotification();
 });
 
@@ -822,6 +877,28 @@ function scheduleDailySummaryAlarm() {
   chrome.alarms.create('dailySummary', {
     delayInMinutes,
     periodInMinutes: 24 * 60 // Repeat every 24 hours
+  });
+}
+
+// Schedule a weekly alarm — fires every Sunday at 8 PM for the weekly summary
+function scheduleWeeklySummaryAlarm() {
+  const now = new Date();
+  let target = new Date();
+  // Next Sunday at 8 PM. getDay() is 0 on Sunday, so "today" maps to 7 (next week).
+  const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
+  target.setDate(now.getDate() + daysUntilSunday);
+  target.setHours(20, 0, 0, 0);
+
+  // If it's currently Sunday before 8 PM, fire today instead of next week.
+  if (now.getDay() === 0 && now.getHours() < 20) {
+    target = new Date();
+    target.setHours(20, 0, 0, 0);
+  }
+
+  const delayInMinutes = Math.max(1, (target.getTime() - now.getTime()) / 60000);
+  chrome.alarms.create('weeklySummary', {
+    delayInMinutes,
+    periodInMinutes: 7 * 24 * 60 // Repeat every 7 days
   });
 }
 
@@ -953,6 +1030,152 @@ function sendEndOfDaySummary() {
   });
 }
 
+// =============================================
+// Weekly Summary — Sunday 8 PM, on-screen + optional email
+// =============================================
+
+// Sum focus/distraction seconds over a list of date keys, using the same
+// study/non-study split as the daily summary.
+function sumWeek(stats, dates, studyDomains, topDomains) {
+  let focus = 0;
+  let distraction = 0;
+  dates.forEach((date) => {
+    const dayStats = stats[date] || {};
+    Object.entries(dayStats).forEach(([domain, seconds]) => {
+      const isStudy = studyDomains.some(d => domain === d || domain.endsWith('.' + d));
+      if (isStudy) {
+        focus += seconds;
+        if (topDomains) topDomains[domain] = (topDomains[domain] || 0) + seconds;
+      } else {
+        distraction += seconds;
+      }
+    });
+  });
+  return { focus, distraction };
+}
+
+function sendWeeklySummary() {
+  const today = localDateStr();
+
+  // Belt-and-suspenders alongside the alarm: only ever fire on a Sunday.
+  if (new Date().getDay() !== 0) return;
+
+  chrome.storage.local.get({
+    lastWeeklySummaryDate: '', dailyStats: {}, studyDomains: [],
+    emailNotifAddress: '', emailjsConfig: null
+  }, (data) => {
+    if (data.lastWeeklySummaryDate === today) return;
+
+    const stats = data.dailyStats;
+    const studyDomains = data.studyDomains;
+
+    // This week = the last 7 days ending today; last week = the 7 before that.
+    const thisWeekDates = [];
+    const lastWeekDates = [];
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      thisWeekDates.push(localDateStr(d));
+
+      const ld = new Date(now);
+      ld.setDate(ld.getDate() - i - 7);
+      lastWeekDates.push(localDateStr(ld));
+    }
+
+    const topDomains = {};
+    const thisWeek = sumWeek(stats, thisWeekDates, studyDomains, topDomains);
+    const lastWeek = sumWeek(stats, lastWeekDates, studyDomains, null);
+
+    const thisWeekTotal = thisWeek.focus + thisWeek.distraction;
+    if (thisWeekTotal === 0) {
+      chrome.storage.local.set({ lastWeeklySummaryDate: today });
+      return;
+    }
+
+    const focusHours = Math.floor(thisWeek.focus / 3600);
+    const focusMins = Math.floor((thisWeek.focus % 3600) / 60);
+    const focusStr = focusHours > 0 ? `${focusHours}h ${focusMins}m` : `${focusMins}m`;
+
+    let changeStr;
+    if (lastWeek.focus > 0) {
+      const pctChange = Math.round(((thisWeek.focus - lastWeek.focus) / lastWeek.focus) * 100);
+      if (pctChange > 0) changeStr = `, up ${pctChange}% from last week 📈`;
+      else if (pctChange < 0) changeStr = `, down ${Math.abs(pctChange)}% from last week 📉`;
+      else changeStr = ', same as last week';
+    } else {
+      changeStr = ' (no data from last week to compare)';
+    }
+
+    const score = Math.round((thisWeek.focus / thisWeekTotal) * 100);
+
+    const topSite = Object.entries(topDomains)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 1)
+      .map(([d]) => d.replace('www.', ''))[0] || '';
+    const topSiteStr = topSite ? ` | Top site: ${topSite}` : '';
+
+    const emoji = score >= 80 ? '🔥' : score >= 60 ? '💪' : score >= 40 ? '👍' : '⚠️';
+    const message = `${emoji} You spent ${focusStr} focused this week${changeStr}. Score: ${score}%${topSiteStr}`;
+
+    chrome.notifications.create('weekly-summary-' + today, {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+      title: '📊 Weekly Focus Summary',
+      message,
+      priority: 2
+    });
+
+    // Email is opt-in twice over: the user saves an address in the popup, and a
+    // developer supplies EmailJS credentials (see email-config.js).
+    if (data.emailNotifAddress && data.emailjsConfig) {
+      sendWeeklyEmail(data.emailNotifAddress, data.emailjsConfig, {
+        focusStr, changeStr, score, topSite,
+        thisWeekFocus: thisWeek.focus,
+        thisWeekDistraction: thisWeek.distraction,
+        lastWeekFocus: lastWeek.focus
+      });
+    }
+
+    chrome.storage.local.set({ lastWeeklySummaryDate: today });
+  });
+}
+
+// Send the weekly summary email via the EmailJS REST API — no server needed.
+// Template variables: {{to_email}}, {{focus_time}}, {{change}}, {{score}},
+// {{top_site}}, {{focus_seconds}}, {{distraction_seconds}}, {{prev_focus_seconds}}
+async function sendWeeklyEmail(toEmail, config, data) {
+  try {
+    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service_id: config.serviceId,
+        template_id: config.templateId,
+        user_id: config.publicKey,
+        template_params: {
+          to_email: toEmail,
+          focus_time: data.focusStr,
+          change: data.changeStr.replace(/^, /, ''),
+          score: `${data.score}%`,
+          top_site: data.topSite || 'N/A',
+          focus_seconds: data.thisWeekFocus,
+          distraction_seconds: data.thisWeekDistraction,
+          prev_focus_seconds: data.lastWeekFocus
+        }
+      })
+    });
+
+    if (response.ok) {
+      console.log('[Hocus Focus] Weekly email sent to', toEmail);
+    } else {
+      console.warn('[Hocus Focus] Email send failed:', response.status, await response.text());
+    }
+  } catch (err) {
+    console.warn('[Hocus Focus] Email send error:', err);
+  }
+}
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'flushStats') {
     if (activeTabId && activeStartTime && activeUrl) {
@@ -966,6 +1189,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
   if (alarm.name === 'dailySummary') {
     sendEndOfDaySummary();
+  }
+  if (alarm.name === 'weeklySummary') {
+    sendWeeklySummary();
   }
   if (alarm.name === 'pomodoroDone') {
     completePomodoro();
