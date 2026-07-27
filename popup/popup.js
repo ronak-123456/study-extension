@@ -381,12 +381,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const li = document.createElement('li');
       li.className = 'allowance-item';
 
+      // Built with textContent rather than innerHTML — `domain` is free text
+      // typed by the user, so it must not be interpolated into markup.
       const info = document.createElement('div');
       info.className = 'allowance-item-info';
-      info.innerHTML = `
-        <span class="allowance-item-domain">${domain}</span>
-        <span class="allowance-item-time">Limit: ${formatAllowanceTime(limitSeconds)}/day</span>
-      `;
+      const domainEl = document.createElement('span');
+      domainEl.className = 'allowance-item-domain';
+      domainEl.textContent = domain;
+      const limitEl = document.createElement('span');
+      limitEl.className = 'allowance-item-time';
+      limitEl.textContent = `Limit: ${formatAllowanceTime(limitSeconds)}/day`;
+      info.appendChild(domainEl);
+      info.appendChild(limitEl);
 
       const badge = document.createElement('span');
       badge.className = `allowance-item-remaining ${isOver ? 'allowance-remaining-over' : isWarn ? 'allowance-remaining-warn' : 'allowance-remaining-ok'}`;
@@ -768,6 +774,74 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   loadTasks();
+})();
+
+// =============================================
+// Email Summaries
+// =============================================
+// Stores the user's address locally. background.js reads it when the weekly
+// summary alarm fires and sends the report via EmailJS.
+(function () {
+  const emailInput = document.getElementById('emailNotifInput');
+  const saveBtn = document.getElementById('saveEmailBtn');
+  const removeBtn = document.getElementById('removeEmailBtn');
+  const setupSection = document.getElementById('emailNotifSetup');
+  const activeSection = document.getElementById('emailNotifActive');
+  const addressEl = document.getElementById('emailNotifAddress');
+  const statusEl = document.getElementById('emailNotifStatus');
+
+  chrome.storage.local.get({ emailNotifAddress: '' }, (data) => {
+    if (data.emailNotifAddress) showActive(data.emailNotifAddress);
+  });
+
+  saveBtn.addEventListener('click', saveEmail);
+  emailInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveEmail();
+  });
+
+  removeBtn.addEventListener('click', () => {
+    chrome.storage.local.remove('emailNotifAddress', () => {
+      showSetup();
+      showStatus('Email removed. You won\'t receive weekly summaries.', false);
+    });
+  });
+
+  function saveEmail() {
+    const email = emailInput.value.trim().toLowerCase();
+
+    if (!email) {
+      showStatus('Enter an email address.', true);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showStatus('Invalid email address.', true);
+      return;
+    }
+
+    chrome.storage.local.set({ emailNotifAddress: email }, () => {
+      showActive(email);
+      showStatus('Saved! You\'ll get weekly summaries.', false);
+      emailInput.value = '';
+    });
+  }
+
+  function showActive(email) {
+    setupSection.style.display = 'none';
+    activeSection.style.display = 'block';
+    addressEl.textContent = email;
+  }
+
+  function showSetup() {
+    setupSection.style.display = 'block';
+    activeSection.style.display = 'none';
+  }
+
+  function showStatus(msg, isError) {
+    statusEl.textContent = msg;
+    statusEl.style.color = isError ? 'var(--danger)' : 'var(--primary-strong)';
+    clearTimeout(showStatus._timer);
+    showStatus._timer = setTimeout(() => { statusEl.textContent = ''; }, 3500);
+  }
 })();
 
 // --- Cloud Sync UI Logic ---
